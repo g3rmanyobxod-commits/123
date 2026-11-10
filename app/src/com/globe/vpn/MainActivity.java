@@ -317,6 +317,13 @@ public class MainActivity extends Activity {
     }
 
     /* JADX INFO: Access modifiers changed from: private */
+    @Override
+    public void onConfigurationChanged(android.content.res.Configuration newConfig) {
+        super.onConfigurationChanged(newConfig);
+        boolean dark = (newConfig.uiMode & android.content.res.Configuration.UI_MODE_NIGHT_MASK) == android.content.res.Configuration.UI_MODE_NIGHT_YES;
+        callJs("window.__onSystemTheme && window.__onSystemTheme(" + dark + ")");
+    }
+
     public void callJs(final String str) {
         runOnUiThread(new Runnable() { // from class: com.globe.vpn.MainActivity.5
             @Override // java.lang.Runnable
@@ -435,6 +442,13 @@ public class MainActivity extends Activity {
         }
 
         /** Список приложений в обходе VPN (JSON-массив пакетов); применяется при следующем подключении. */
+        /** Тема устройства: true — системная тёмная тема. */
+        @JavascriptInterface
+        public boolean systemDark() {
+            int mode = getResources().getConfiguration().uiMode & android.content.res.Configuration.UI_MODE_NIGHT_MASK;
+            return mode == android.content.res.Configuration.UI_MODE_NIGHT_YES;
+        }
+
         @JavascriptInterface
         public void setBypass(String json) {
             String value = json == null ? "[]" : json;

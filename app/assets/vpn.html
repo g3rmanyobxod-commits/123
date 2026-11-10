@@ -3276,6 +3276,64 @@ body[data-many="true"] .srv { transition: none; }
 .bypass-name { font-size: 14px; color: var(--ink); }
 .bypass-pkg { font-size: 11px; color: var(--muted); font-family: var(--mono); }
 </style>
+<style id="v5-countries">
+/* v5: страна — один кружок; список серверов страны по нажатию */
+.srv-group { cursor: pointer; z-index: 4; }
+.srv-group .srv-count {
+  position: absolute; top: -2px; right: -2px;
+  min-width: 18px; height: 18px; padding: 0 5px; box-sizing: border-box;
+  border-radius: 999px; background: var(--ink); color: var(--paper);
+  font: 600 10px/18px var(--mono); text-align: center;
+  box-shadow: 0 0 0 2px var(--paper);
+}
+.srv-pop {
+  position: absolute; left: 0; top: 0; display: none;
+  width: 230px; max-height: 260px; overflow-y: auto; box-sizing: border-box;
+  padding: 6px; border-radius: 14px; background: var(--paper);
+  border: 1px solid var(--line); box-shadow: 0 14px 30px var(--shadow);
+  z-index: 6; pointer-events: auto;
+}
+.srv-pop-head { padding: 6px 8px 8px; font: 500 11px/1.3 var(--mono); letter-spacing: .04em; color: var(--muted); text-align: left; }
+.srv-pop-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  width: 100%; box-sizing: border-box; padding: 9px 8px; border: 0; border-radius: 9px;
+  background: none; color: var(--ink); font: inherit; font-size: 14px; text-align: left; cursor: pointer;
+}
+.srv-pop-row:hover { background: var(--paper-2, rgba(0, 0, 0, .05)); }
+.srv-pop-row.is-selected { color: var(--accent); font-weight: 600; }
+.srv-pop-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.srv-pop-ms { flex: 0 0 auto; font: 12px var(--mono); color: var(--muted); }
+</style>
+<style id="v5-align">
+/* v5: единая вертикаль в настройках и статистике — заголовок раздела сверху, строки с одинаковыми отступами */
+#view-settings .group, #view-stats .group { padding-top: 0; padding-bottom: 0; }
+#view-stats .stats-group { padding-bottom: 16px; }
+#view-settings .group h2, #view-stats .group h2 {
+  margin: 0;
+  padding: 16px 18px 10px;
+  font-size: 10.5px;
+  line-height: 1.2;
+  letter-spacing: .14em;
+}
+#view-settings .row, #view-stats .row {
+  box-sizing: border-box;
+  min-height: 64px;
+  padding: 14px 18px;
+  align-items: center;
+}
+#view-settings .row-stack, #view-stats .row-stack {
+  align-items: stretch;
+  gap: 12px;
+  padding-top: 16px;
+  padding-bottom: 16px;
+}
+#view-settings .row-copy, #view-stats .row-copy { display: flex; flex-direction: column; gap: 4px; }
+#view-settings .row-label, #view-stats .row-label,
+#view-settings .row-note, #view-stats .row-note { margin: 0; line-height: 1.35; text-align: left; }
+#view-settings .row-label, #view-stats .row-label { font-size: 15px; }
+#view-settings .row-note, #view-stats .row-note { font-size: 12.5px; }
+#view-stats .stats-mono { line-height: 1; }
+</style>
 <body data-view="home">
 
 <svg class="glass-defs" width="0" height="0" aria-hidden="true" focusable="false"><defs>
@@ -3644,13 +3702,6 @@ body[data-many="true"] .srv { transition: none; }
           <div class="swatches" role="group" aria-label="Акцентный цвет"></div>
           <p class="accent-value" id="accent-value">Изумруд · #1D5A45</p>
         </div>
-        <div class="row">
-          <div class="row-copy">
-            <p class="row-label">Компактные списки</p>
-            <p class="row-note">Больше серверов на экране.</p>
-          </div>
-          <button class="switch" type="button" role="switch" aria-checked="false" aria-label="Компактные списки" data-setting="compact"><span></span></button>
-        </div>
         <div class="row row-stack">
           <div class="row-copy">
             <p class="row-label">Виброотклик</p>
@@ -3695,13 +3746,6 @@ body[data-many="true"] .srv { transition: none; }
             <button type="button" data-group="flags" data-value="1" aria-pressed="true">Обычные</button>
             <button type="button" data-group="flags" data-value="1.25" aria-pressed="false">Крупные</button>
           </div>
-        </div>
-        <div class="row">
-          <div class="row-copy">
-            <p class="row-label">Названия городов</p>
-            <p class="row-note">Подписи под флагами на карте.</p>
-          </div>
-          <button class="switch" type="button" role="switch" aria-checked="false" aria-label="Названия городов на карте" data-setting="labels"><span></span></button>
         </div>
         <div class="row row-stack">
           <p class="row-label">Размер точек</p>
@@ -4201,6 +4245,121 @@ window.GEO_CITIES = [
     return out;
   };
 
+  DotGlobe.prototype.ensureGroup = function (key) {
+    if (!this.groupEls) this.groupEls = {};
+    if (this.groupEls[key]) return this.groupEls[key];
+    const self = this;
+    const el = document.createElement('button');
+    el.type = 'button';
+    el.className = 'srv srv-group';
+    el.dataset.group = key;
+    el.setAttribute('aria-haspopup', 'listbox');
+    el.setAttribute('aria-expanded', 'false');
+    const flag = document.createElement('span');
+    flag.className = 'srv-flag';
+    flag.setAttribute('aria-hidden', 'true');
+    const count = document.createElement('span');
+    count.className = 'srv-count';
+    count.setAttribute('aria-hidden', 'true');
+    el.appendChild(flag);
+    el.appendChild(count);
+    el.addEventListener('click', function (event) {
+      event.stopPropagation();
+      self.toggleGroup(key);
+    });
+    this.layer.appendChild(el);
+    this.groupEls[key] = el;
+    if (!this.groupBound) {
+      this.groupBound = true;
+      document.addEventListener('pointerdown', function (event) {
+        if (!self.openGroup) return;
+        const target = event.target;
+        if (target && target.closest && target.closest('.srv-pop, .srv-group')) return;
+        self.closeGroup();
+      }, true);
+    }
+    return el;
+  };
+
+  DotGlobe.prototype.toggleGroup = function (key) {
+    if (this.openGroup === key) {
+      this.closeGroup();
+      return;
+    }
+    this.openGroup = key;
+    this.renderGroup();
+  };
+
+  DotGlobe.prototype.closeGroup = function () {
+    this.openGroup = null;
+    if (this.popEl) this.popEl.style.display = 'none';
+    Object.keys(this.groupEls || {}).forEach(function (key) {
+      this.groupEls[key].setAttribute('aria-expanded', 'false');
+    }, this);
+  };
+
+  DotGlobe.prototype.renderGroup = function () {
+    const self = this;
+    const data = this.groupData && this.groupData[this.openGroup];
+    if (!data) {
+      this.closeGroup();
+      return;
+    }
+    if (!this.popEl) {
+      const pop = document.createElement('div');
+      pop.className = 'srv-pop';
+      pop.setAttribute('role', 'listbox');
+      pop.addEventListener('pointerdown', function (event) { event.stopPropagation(); });
+      pop.addEventListener('click', function (event) { event.stopPropagation(); });
+      this.layer.appendChild(pop);
+      this.popEl = pop;
+    }
+    const pop = this.popEl;
+    pop.innerHTML = '';
+    pop.style.display = 'block';
+    const head = document.createElement('div');
+    head.className = 'srv-pop-head';
+    head.textContent = data.flag + ' ' + data.country + ' · ' + data.servers.length;
+    pop.appendChild(head);
+    const pingOf = function (server) {
+      const entry = self.latency ? self.latency[server.id] : null;
+      return entry && Number.isFinite(entry.ms) ? entry.ms : 99999;
+    };
+    data.servers.slice().sort(function (a, b) {
+      return pingOf(a) - pingOf(b) || String(a.city).localeCompare(String(b.city), 'ru');
+    }).forEach(function (server) {
+      const row = document.createElement('button');
+      row.type = 'button';
+      row.className = 'srv-pop-row' + (server.id === self.selectedId ? ' is-selected' : '');
+      row.setAttribute('role', 'option');
+      const name = document.createElement('span');
+      name.className = 'srv-pop-name';
+      name.textContent = server.city || server.host || '';
+      const ms = document.createElement('span');
+      ms.className = 'srv-pop-ms';
+      const value = pingOf(server);
+      ms.textContent = value < 99999 ? value + ' мс' : '—';
+      row.appendChild(name);
+      row.appendChild(ms);
+      row.addEventListener('click', function (event) {
+        event.stopPropagation();
+        self.select(server.id);
+        if (typeof self.onPick === 'function') self.onPick(server);
+        self.closeGroup();
+      });
+      pop.appendChild(row);
+    });
+    this.groupEls[this.openGroup].setAttribute('aria-expanded', 'true');
+    this.positionGroup();
+  };
+
+  DotGlobe.prototype.positionGroup = function () {
+    if (!this.popEl || !this.openGroup || !this.groupData) return;
+    const data = this.groupData[this.openGroup];
+    if (!data) return;
+    this.popEl.style.transform = 'translate3d(' + data.x.toFixed(1) + 'px,' + (data.y + 30).toFixed(1) + 'px,0) translate(-50%,0)';
+  };
+
   DotGlobe.prototype.createMarker = function (server) {
     const self = this;
     if (!server || this.markers.has(server.id)) return;
@@ -4574,66 +4733,76 @@ window.GEO_CITIES = [
       button.tabIndex = 0;
       button.style.transform = 'translate3d(' + p.x.toFixed(1) + 'px,' + p.y.toFixed(1) + 'px,0) translate(-50%,-50%)';
       button.style.setProperty('--depth', String(clamp(p.z, 0, 1)));
-      visible.push({ button: button, x: p.x, y: p.y, z: p.z, city: String(server.city || '') });
+      visible.push({ button: button, server: server, x: p.x, y: p.y, z: p.z, city: String(server.city || '') });
     });
 
-    // маркеры: серверы на одной точке (и «плохие» >200 мс / недоступные) — кольцо фиксированного шага,
-    // одиночные серверы остаются на своих координатах; порядок стабилен (по id).
+    // маркеры: одна страна — один кружок; несколько серверов страны — кружок со счётчиком и список по нажатию
     visible.sort(function (a, b) { return String(a.button.dataset.id).localeCompare(String(b.button.dataset.id)); });
     const alive = visible.filter(function (item) {
       const entry = self.latency ? self.latency[item.button.dataset.id] : null;
       const dead = entry && (entry.ms == null || (Number.isFinite(entry.ms) && entry.ms > 200));
       item.button.classList.toggle('is-offline', !!dead);
       item.button.classList.toggle('is-hidden-map', !!dead);
+      item.button.classList.remove('is-grouped');
       if (dead) item.button.style.visibility = 'hidden';
       return !dead;
     });
-    const CLUSTER_PX = 7; // серверы ближе этого расстояния считаются одной точкой
-    const parent = alive.map(function (_, i) { return i; });
-    const find = function (i) { while (parent[i] !== i) { parent[i] = parent[parent[i]]; i = parent[i]; } return i; };
-    for (let i = 0; i < alive.length; i += 1) {
-      for (let j = i + 1; j < alive.length; j += 1) {
-        const dx = alive[i].x - alive[j].x;
-        const dy = alive[i].y - alive[j].y;
-        if (dx * dx + dy * dy < CLUSTER_PX * CLUSTER_PX) parent[find(i)] = find(j);
-      }
-    }
     const groups = {};
-    alive.forEach(function (item, i) {
-      const r = find(i);
-      (groups[r] = groups[r] || []).push(item);
+    const order = [];
+    alive.forEach(function (item) {
+      const key = String(item.server.code || item.server.country || item.server.id);
+      if (!groups[key]) { groups[key] = []; order.push(key); }
+      groups[key].push(item);
     });
-    Object.keys(groups).forEach(function (key) {
-      const group = groups[key];
-      const n = group.length;
+    if (!this.groupData) this.groupData = {};
+    const shown = {};
+    order.forEach(function (key) {
+      const members = groups[key];
+      if (members.length === 1) {
+        const only = members[0];
+        only.button.style.transform = 'translate3d(' + only.x.toFixed(1) + 'px,' + only.y.toFixed(1) + 'px,0) translate(-50%,-50%)';
+        return;
+      }
       let cx = 0;
       let cy = 0;
-      group.forEach(function (it) { cx += it.x; cy += it.y; });
-      cx /= n;
-      cy /= n;
-      // кольца с шагом 30px (флаг ~30px): радиус 18 + 30k, на кольце не больше длины окружности / 30
-      let placed = 0;
-      let ring = 0;
-      while (placed < n) {
-        const radius = n === 1 ? 0 : 18 + ring * 30;
-        const capacity = n === 1 ? 1 : Math.min(n - placed, Math.max(2, Math.floor((2 * Math.PI * radius) / 30)));
-        for (let k = 0; k < capacity; k += 1) {
-          const item = group[placed + k];
-          const angle = -Math.PI / 2 + (k * 2 * Math.PI) / capacity;
-          const x = n === 1 ? item.x : cx + Math.cos(angle) * radius;
-          const y = n === 1 ? item.y : cy + Math.sin(angle) * radius;
-          item.button.style.transform = 'translate3d(' + x.toFixed(1) + 'px,' + y.toFixed(1) + 'px,0) translate(-50%,-50%)';
-          item.button.classList.toggle('is-displaced', n > 1);
-          item.x = x;
-          item.y = y;
-        }
-        placed += capacity;
-        ring += 1;
-      }
+      members.forEach(function (m) { cx += m.x; cy += m.y; });
+      cx /= members.length;
+      cy /= members.length;
+      members.forEach(function (m) {
+        m.grouped = true;
+        m.button.classList.add('is-grouped');
+        m.button.style.visibility = 'hidden';
+        m.button.tabIndex = -1;
+      });
+      const el = self.ensureGroup(key);
+      const first = members[0].server;
+      const flagText = first.flag || (first.code ? String(first.code).toUpperCase() : '··');
+      el.querySelector('.srv-flag').textContent = flagText;
+      el.querySelector('.srv-count').textContent = String(members.length);
+      el.setAttribute('aria-label', (first.country || key) + ', серверов: ' + members.length);
+      el.style.visibility = 'visible';
+      el.style.transform = 'translate3d(' + cx.toFixed(1) + 'px,' + cy.toFixed(1) + 'px,0) translate(-50%,-50%)';
+      el.classList.toggle('is-selected', members.some(function (m) { return m.button.dataset.id === self.selectedId; }));
+      self.groupData[key] = {
+        key: key,
+        x: cx,
+        y: cy,
+        flag: flagText,
+        country: first.country || first.code || key,
+        servers: members.map(function (m) { return m.server; })
+      };
+      shown[key] = true;
     });
+    Object.keys(this.groupEls || {}).forEach(function (key) {
+      if (shown[key]) return;
+      self.groupEls[key].style.visibility = 'hidden';
+      delete self.groupData[key];
+    });
+    if (this.openGroup && !shown[this.openGroup]) this.closeGroup();
+    else this.positionGroup();
 
     // подписи городов: прячем те, что перекрываются с более близкими
-    const labels = visible.filter(function (item) { return !item.hidden; });
+    const labels = alive.filter(function (item) { return !item.grouped; });
     labels.sort(function (a, b) { return b.z - a.z; });
     const placed = [];
     labels.forEach(function (item) {
@@ -15104,10 +15273,17 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
   }
 
   // «Авто» — светлая/тёмная по настройке системы; тема в settings.theme всегда конкретная
-  function resolveThemeMode(mode) {
-    if (mode === 'auto') {
-      return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'night' : 'paper';
+  let systemDarkFromApp = null;
+  function isSystemDark() {
+    if (systemDarkFromApp !== null) return systemDarkFromApp;
+    const bridge = window.Native;
+    if (bridge && typeof bridge.systemDark === 'function') {
+      try { return !!bridge.systemDark(); } catch (error) { /* переходим к CSS */ }
     }
+    return !!(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  }
+  function resolveThemeMode(mode) {
+    if (mode === 'auto') return isSystemDark() ? 'night' : 'paper';
     return mode === 'night' ? 'night' : 'paper';
   }
 
@@ -15137,11 +15313,11 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
       rotate: raw.rotate !== false,
       route: raw.route !== false,
       reduced: raw.reduced == null ? osReduced : raw.reduced === true,
-      labels: raw.labels === true,
+      labels: false,
       haptic: [0, 1, 2, 3].indexOf(Number(raw.haptic)) !== -1 ? Number(raw.haptic) : 2,
       ruBypass: raw.ruBypass !== false,
       customAccents: loadCustomAccents(),
-      compact: raw.compact === true,
+      compact: false,
       ping: raw.ping !== false,
       dots: normalizeDots(raw.dots == null ? 1 : raw.dots),
       flags: normalizeFlags(raw.flags == null ? 1 : raw.flags),
@@ -18796,6 +18972,10 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
     }, { passive: true });
   }
 
+  window.__onSystemTheme = function (dark) {
+    systemDarkFromApp = !!dark;
+    if (settings.themeMode === 'auto') applyTheme('auto');
+  };
   buildSwatches();
   applyTheme(settings.themeMode);
   if (window.matchMedia) {
