@@ -20,6 +20,7 @@ import libv2ray.Libv2ray;
 public class GlobeVpnService extends VpnService {
     public static final String ACTION_START = "com.globe.vpn.START";
     public static final String ACTION_STOP = "com.globe.vpn.STOP";
+    public static final String ACTION_PING = "com.globe.vpn.PING";
     private static final String CHANNEL = "vpn";
     public static final String EXTRA_CONFIG = "config";
     public static final String EXTRA_NAME = "name";
@@ -72,6 +73,10 @@ public class GlobeVpnService extends VpnService {
             stopEverything();
             stopSelf();
             return 2;
+        }
+        if (intent != null && ACTION_PING.equals(intent.getAction())) {
+            pingNow();
+            return 1;
         }
         String stringExtra = intent == null ? null : intent.getStringExtra(EXTRA_CONFIG);
         String stringExtra2 = intent == null ? "" : intent.getStringExtra(EXTRA_NAME);
@@ -319,13 +324,11 @@ public class GlobeVpnService extends VpnService {
         downBytes = 0L;
         connectedAt = 0L;
         try {
-            stopForeground(true);
+            stopForeground(false);
         } catch (Throwable unused2) {
         }
-        NotificationManager notificationManager = (NotificationManager) getSystemService("notification");
-        if (notificationManager != null) {
-            notificationManager.cancel(NOTIFY_ID);
-        }
+        // после остановки уведомление остаётся: его можно смахнуть или нажать «Включить»
+        notifyIdle();
     }
 
     @Override // android.app.Service
@@ -378,6 +381,7 @@ public class GlobeVpnService extends VpnService {
                     .setSmallIcon(R.drawable.ic_stat_vpn)
                     .setOngoing(true)
                     .setContentIntent(pending);
+            attachPingAction(builder);
             attachStopAction(builder);
             Notification notification = builder.build();
             if (Build.VERSION.SDK_INT >= 29) {
@@ -385,6 +389,69 @@ public class GlobeVpnService extends VpnService {
             } else {
                 startForeground(4101, notification);
             }
+        } catch (Throwable ignored) {
+        }
+    }
+
+    private void attachPingAction(Notification.Builder builder) {
+        try {
+            Intent intent = new Intent(this, GlobeVpnService.class);
+            intent.setAction(ACTION_PING);
+            android.app.PendingIntent pending = android.app.PendingIntent.getService(this, 8, intent,
+                    android.app.PendingIntent.FLAG_UPDATE_CURRENT | android.app.PendingIntent.FLAG_IMMUTABLE);
+            builder.addAction(new Notification.Action.Builder(
+                    android.graphics.drawable.Icon.createWithResource(this, R.drawable.ic_stat_vpn),
+                    "Пинг", pending).build());
+        } catch (Throwable ignored) {
+        }
+    }
+
+    // пинг текущего сервера по кнопке в уведомлении; результат пишется в текст уведомления
+    private void pingNow() {
+        final String config = currentConfig;
+        if (!running || config == null || config.isEmpty()) return;
+        noticePing = -3;
+        notifyState(activeName);
+        new Thread(new Runnable() {
+            @Override // java.lang.Runnable
+            public void run() {
+                long ms = probeMs(config, "https://www.gstatic.com/generate_204", 4000);
+                noticePing = ms > 0 ? (int) ms : -2;
+                notifyState(activeName);
+            }
+        }, "globe-notice-ping").start();
+    }
+
+    // уведомление после остановки: смахиваемое, с кнопкой «Включить» (открывает приложение и подключает)
+    private void notifyIdle() {
+        try {
+            NotificationManager notificationManager = (NotificationManager) getSystemService("notification");
+            if (notificationManager == null) return;
+            Notification.Builder builder = Build.VERSION.SDK_INT >= 26
+                    ? new Notification.Builder(this, CHANNEL)
+                    : new Notification.Builder(this);
+            String last = getSharedPreferences("globe-vpn", 0).getString("last_name", "");
+            String text = (last == null || last.isEmpty()) ? "VPN выключен" : "Выключено · " + last;
+            builder.setContentTitle("smpl")
+                    .setContentText(text)
+                    .setSmallIcon(R.drawable.ic_stat_vpn)
+                    .setOngoing(false)
+                    .setAutoCancel(false)
+                    .setContentIntent(android.app.PendingIntent.getActivity(this, 0,
+                            new Intent(this, MainActivity.class).setFlags(0x14000000),
+                            android.app.PendingIntent.FLAG_UPDATE_CURRENT | android.app.PendingIntent.FLAG_IMMUTABLE));
+            try {
+                Intent reconnect = new Intent(this, MainActivity.class)
+                        .setFlags(0x14000000)
+                        .putExtra(MainActivity.EXTRA_RECONNECT, true);
+                builder.addAction(new Notification.Action.Builder(
+                        android.graphics.drawable.Icon.createWithResource(this, R.drawable.ic_stat_vpn),
+                        "Включить",
+                        android.app.PendingIntent.getActivity(this, 9, reconnect,
+                                android.app.PendingIntent.FLAG_UPDATE_CURRENT | android.app.PendingIntent.FLAG_IMMUTABLE)).build());
+            } catch (Throwable ignored) {
+            }
+            notificationManager.notify(NOTIFY_ID, builder.build());
         } catch (Throwable ignored) {
         }
     }
@@ -402,11 +469,21 @@ public class GlobeVpnService extends VpnService {
             builder.setContentIntent(android.app.PendingIntent.getActivity(this, 0,
                     new Intent(this, MainActivity.class).setFlags(0x14000000),
                     android.app.PendingIntent.FLAG_UPDATE_CURRENT | android.app.PendingIntent.FLAG_IMMUTABLE));
+            attachPingAction(builder);
             attachStopAction(builder);
             String name = noticeServer != null && !noticeServer.isEmpty()
                     ? noticeServer
                     : (str == null || str.isEmpty() ? "Туннель активен" : str);
-            String line = noticePing >= 0 ? name + " · " + noticePing + " мс" : name;
+            String line;
+            if (noticePing >= 0) {
+                line = name + " · " + noticePing + " мс";
+            } else if (noticePing == -2) {
+                line = name + " · нет ответа";
+            } else if (noticePing == -3) {
+                line = name + " · проверка…";
+            } else {
+                line = name;
+            }
             builder.setContentText(line).setSmallIcon(R.drawable.ic_stat_vpn).setOngoing(true);
             notificationManager.notify(NOTIFY_ID, builder.build());
         } catch (Throwable ignored) {

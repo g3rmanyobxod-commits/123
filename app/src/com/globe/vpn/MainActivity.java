@@ -57,6 +57,8 @@ public class MainActivity extends Activity {
     private WebView web;
     private long lastBackAt = 0;
     private String pendingSaveText = "";
+    public static final String EXTRA_RECONNECT = "globe_reconnect";
+    private boolean pendingReconnect = false;
     private String pendingVpnConfig = null;
     private String pendingVpnName = "";
     private final Handler ui = new Handler(Looper.getMainLooper());
@@ -75,6 +77,7 @@ public class MainActivity extends Activity {
     @Override // android.app.Activity
     protected void onCreate(Bundle bundle) {
         super.onCreate(bundle);
+        checkReconnect(getIntent());
         Window window = getWindow();
         window.setStatusBarColor(Color.parseColor("#F2F0EA"));
         window.setNavigationBarColor(Color.parseColor("#F2F0EA"));
@@ -166,6 +169,7 @@ public class MainActivity extends Activity {
                     return;
                 }
                 webView2.evaluateJavascript("window.__APP = { version: '1.0.0', platform: 'android' };", null);
+                MainActivity.this.deliverReconnect();
                 MainActivity.this.deliverPendingLink();
             }
         });
@@ -195,7 +199,24 @@ public class MainActivity extends Activity {
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
         setIntent(intent);
+        checkReconnect(intent);
+        deliverReconnect();
         deliverPendingLink();
+    }
+
+    // флаг «Включить» из уведомления: запоминаем и передаём интерфейсу, когда страница готова
+    private void checkReconnect(Intent intent) {
+        if (intent != null && intent.getBooleanExtra(EXTRA_RECONNECT, false)) {
+            intent.removeExtra(EXTRA_RECONNECT);
+            pendingReconnect = true;
+        }
+    }
+
+    private void deliverReconnect() {
+        if (pendingReconnect && this.web != null) {
+            pendingReconnect = false;
+            this.web.evaluateJavascript("window.__onNotifyReconnect && window.__onNotifyReconnect()", null);
+        }
     }
 
     /* JADX INFO: Access modifiers changed from: private */
@@ -619,6 +640,26 @@ public class MainActivity extends Activity {
             String head = text.length() > 4000 ? text.substring(0, 4000) : text;
             String lower = head.trim().toLowerCase(java.util.Locale.ROOT);
             return lower.startsWith("<!doctype") || lower.startsWith("<html") || lower.contains("<html");
+        }
+
+        // системное меню «Поделиться» с текстом подписки
+        @JavascriptInterface
+        public void shareText(final String text, final String title) {
+            MainActivity.this.runOnUiThread(new Runnable() { // from class: com.globe.vpn.MainActivity.Bridge.share
+                @Override // java.lang.Runnable
+                public void run() {
+                    Intent send = new Intent(Intent.ACTION_SEND);
+                    send.setType("text/plain");
+                    send.putExtra(Intent.EXTRA_TEXT, text == null ? "" : text);
+                    if (title != null && !title.isEmpty()) {
+                        send.putExtra(Intent.EXTRA_SUBJECT, title);
+                    }
+                    try {
+                        MainActivity.this.startActivity(Intent.createChooser(send, "Поделиться подпиской"));
+                    } catch (Exception ignored) {
+                    }
+                }
+            });
         }
 
         @JavascriptInterface

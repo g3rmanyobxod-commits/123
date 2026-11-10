@@ -3457,27 +3457,55 @@ html { touch-action: manipulation; }
   @media (max-width: 380px) {
     .autopilot { left: calc(50% + 114px); bottom: calc(22px + env(safe-area-inset-bottom)); width: 48px; height: 40px; }
   }
-  /* блюр под кнопкой автопилота: размывает содержимое за ней до края экрана */
-  .autopilot-blur {
-    position: fixed;
-    left: calc(50% + 116px);
-    bottom: 0;
-    z-index: 39;
-    width: 60px;
-    height: 46px;
-    pointer-events: none;
-    -webkit-backdrop-filter: blur(14px) saturate(140%);
-    backdrop-filter: blur(14px) saturate(140%);
-    -webkit-mask-image: linear-gradient(to top, #000 60%, transparent);
-    mask-image: linear-gradient(to top, #000 60%, transparent);
-  }
-  @media (max-width: 380px) {
-    .autopilot-blur { left: calc(50% + 110px); width: 56px; height: 42px; }
-  }
   /* полоска заполнения трафика */
   .traffic-bar { height: 6px; margin: 10px 0 2px; border-radius: 999px; background: var(--paper-2, rgba(0, 0, 0, .08)); overflow: hidden; }
   .traffic-bar span { display: block; height: 100%; border-radius: inherit; background: var(--accent); transition: width .4s ease; }
   .heat-mode { margin: 12px 18px 0; }
+
+  /* v9: линия и флаг страны под слайдером скрыты, город остаётся по центру */
+  .path-from, .path-line { display: none; }
+  .path { grid-template-columns: minmax(0, 1fr); justify-items: center; }
+  /* v9: иконка подключения у конца слайдера прячется, когда ползунок дотянут до конца */
+  .slider.is-at-end .slider-end { opacity: 0; }
+  /* v9: линия трафика в шапке подписки */
+  .group-copy .traffic-bar { display: block; width: 100%; height: 3px; margin: 6px 0 0; }
+  /* v9: автопилот — стекло как у нижней панели; выезжает из-под неё вправо и уходит под неё влево */
+  .autopilot {
+    z-index: 39;
+    background: transparent;
+    border: 0;
+    overflow: hidden;
+    isolation: isolate;
+    box-shadow: 0 16px 38px rgba(18, 20, 18, .16), 0 2px 8px rgba(18, 20, 18, .07);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    transform: translateX(0);
+    opacity: 1;
+    visibility: visible;
+    transition: transform .42s cubic-bezier(.3, .9, .26, 1), opacity .3s ease, visibility .42s, color .25s ease;
+  }
+  .autopilot::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    background: var(--glass-tint);
+    -webkit-backdrop-filter: blur(18px) saturate(150%);
+    backdrop-filter: blur(18px) saturate(150%);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .38), inset 0 0 0 1px var(--dock-line);
+    transition: background-color .25s ease;
+  }
+  .autopilot > svg { position: relative; z-index: 1; }
+  .autopilot[aria-pressed="true"] { background: transparent; border-color: transparent; color: #fff; }
+  .autopilot[aria-pressed="true"]::before { background: var(--accent); }
+  body:not([data-view="home"]) .autopilot {
+    transform: translateX(-130px);
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+  }
 </style>
 <body data-view="home">
 
@@ -4017,7 +4045,6 @@ html { touch-action: manipulation; }
     </div>
   </section>
 
-  <div class="autopilot-blur" aria-hidden="true"></div>
   <button class="autopilot" type="button" id="autopilot" aria-pressed="false" aria-label="Автопилот: сам выбирает рабочий сервер" title="Автопилот">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
       <circle cx="12" cy="12" r="7.6" />
@@ -16722,6 +16749,7 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
       const max = slider.max || sliderMax();
       const eased = Math.max(0, Math.min(max * 1.06, raw));
       sliderPaint(Math.min(max, eased), false);
+      el.classList.toggle('is-at-end', eased >= max * 0.9);
       const armed = eased >= max * 0.62;
       if (armed !== slider.armed) {
         slider.armed = armed;
@@ -16735,6 +16763,7 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
       el.classList.remove('is-dragging');
       const max = slider.max || sliderMax();
       el.classList.remove('is-armed');
+      el.classList.remove('is-at-end');
       slider.armed = false;
       slider.justDragged = true;
       window.setTimeout(function () { slider.justDragged = false; }, 420);
@@ -17094,6 +17123,38 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
     if (key === dayKey(yesterday)) return 'вчера';
     return names[date.getDay()] + ', ' + date.getDate() + ' ' + months[date.getMonth()];
   }
+
+  function shareSubscription(sub) {
+    const text = sub.url || sub.content || '';
+    if (!text) {
+      showToast('У подписки нет адреса для отправки');
+      return;
+    }
+    const title = sub.name || 'Подписка';
+    if (native && typeof native.shareText === 'function') {
+      try {
+        native.shareText(text, title);
+        return;
+      } catch (error) { /* откат ниже */ }
+    }
+    if (navigator.share) {
+      navigator.share({ title: title, text: text }).catch(function () { /* отменено */ });
+      return;
+    }
+    if (native && typeof native.copy === 'function') {
+      native.copy(text);
+      showToast('Ссылка скопирована');
+      return;
+    }
+    showToast('Поделиться не получилось');
+  }
+
+  // «Включить» из уведомления: подключаемся к выбранному серверу, если VPN не активен
+  window.__onNotifyReconnect = function () {
+    const current = vpnStateName();
+    if (current === 'connected' || current === 'connecting') return;
+    startConnection();
+  };
 
   function startConnection() {
     const server = selectedServer();
@@ -17917,6 +17978,8 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
     name.className = 'group-name';
     name.textContent = options.name;
     copy.appendChild(name);
+    const headTraffic = sub && !sub.hideTraffic ? trafficStats(sub.meta && sub.meta.traffic) : null;
+    if (headTraffic && headTraffic.ratio != null) copy.appendChild(trafficBar(headTraffic.ratio));
     const desc = sub ? (sub.localDesc != null ? sub.localDesc : (sub.desc || '')) : '';
     if (sub && desc && !sub.hideDesc) {
       const line = document.createElement('span');
@@ -17965,6 +18028,17 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
         refreshSub(sub.id, refresh);
       });
       tools.appendChild(refresh);
+      const share = document.createElement('button');
+      share.type = 'button';
+      share.className = 'group-action';
+      share.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M8 7l4-4 4 4"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></svg>';
+      share.title = 'Поделиться подпиской';
+      share.setAttribute('aria-label', 'Поделиться подпиской ' + options.name);
+      share.addEventListener('click', function (event) {
+        event.stopPropagation();
+        shareSubscription(sub);
+      });
+      tools.appendChild(share);
       const remove = document.createElement('button');
       remove.type = 'button';
       remove.className = 'group-action is-danger';
@@ -17999,18 +18073,6 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
         line.className = 'sub-traffic';
         line.textContent = traffic;
         info.appendChild(line);
-        if (trafficInfo.ratio != null) {
-          const bar = document.createElement('div');
-          bar.className = 'traffic-bar';
-          bar.setAttribute('role', 'progressbar');
-          bar.setAttribute('aria-valuemin', '0');
-          bar.setAttribute('aria-valuemax', '100');
-          bar.setAttribute('aria-valuenow', String(Math.round(trafficInfo.ratio * 100)));
-          const fill = document.createElement('span');
-          fill.style.width = (trafficInfo.ratio * 100).toFixed(1) + '%';
-          bar.appendChild(fill);
-          info.appendChild(bar);
-        }
       }
       body.appendChild(info);
     }
@@ -18532,6 +18594,20 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
     const total = pick('total');
     const used = (pick('upload') || 0) + (pick('download') || 0);
     return { text: text, ratio: total ? Math.min(1, used / total) : null };
+  }
+
+  function trafficBar(ratio) {
+    const bar = document.createElement('span');
+    bar.className = 'traffic-bar';
+    bar.setAttribute('role', 'progressbar');
+    bar.setAttribute('aria-valuemin', '0');
+    bar.setAttribute('aria-valuemax', '100');
+    bar.setAttribute('aria-valuenow', String(Math.round(ratio * 100)));
+    bar.setAttribute('aria-label', 'Использовано трафика ' + Math.round(ratio * 100) + '%');
+    const fill = document.createElement('span');
+    fill.style.width = (ratio * 100).toFixed(1) + '%';
+    bar.appendChild(fill);
+    return bar;
   }
 
   function dayBytes(key) {
