@@ -3451,16 +3451,28 @@ html { touch-action: manipulation; }
   .sheet-actions { display: flex; justify-content: flex-end; gap: 10px; padding: 14px 0 4px; }
   .sheet-actions .primary { min-height: 44px; padding: 0 20px; border: 0; border-radius: 999px; background: var(--accent); color: #fff; font: inherit; font-weight: 600; cursor: pointer; }
   .group-action.is-busy svg, .ping-all.is-busy svg { animation: ping-spin 1s linear infinite; }
-  /* v7: линия и флаг под слайдером убраны; иконка подключения под стрелкой */
-  .path { display: none !important; }
-  .slider-end { display: none !important; }
-  .slider[data-state="idle"]:not(.is-dragging) .slider-arrow { top: 4px; margin: 0 0 0 -12px; }
-  .slider[data-state="idle"]:not(.is-dragging) .slider-power { opacity: .8; top: 22px; margin: 0 0 0 -12px; transform: scale(.6); }
   /* автопилот: размер и форма как у пунктов нижней панели */
   .autopilot { left: calc(50% + 120px); bottom: calc(23px + env(safe-area-inset-bottom)); width: 52px; height: 44px; border-radius: 999px; }
   .autopilot svg { width: 20px; height: 20px; }
   @media (max-width: 380px) {
     .autopilot { left: calc(50% + 114px); bottom: calc(22px + env(safe-area-inset-bottom)); width: 48px; height: 40px; }
+  }
+  /* блюр под кнопкой автопилота: размывает содержимое за ней до края экрана */
+  .autopilot-blur {
+    position: fixed;
+    left: calc(50% + 116px);
+    bottom: 0;
+    z-index: 39;
+    width: 60px;
+    height: 46px;
+    pointer-events: none;
+    -webkit-backdrop-filter: blur(14px) saturate(140%);
+    backdrop-filter: blur(14px) saturate(140%);
+    -webkit-mask-image: linear-gradient(to top, #000 60%, transparent);
+    mask-image: linear-gradient(to top, #000 60%, transparent);
+  }
+  @media (max-width: 380px) {
+    .autopilot-blur { left: calc(50% + 110px); width: 56px; height: 42px; }
   }
   /* полоска заполнения трафика */
   .traffic-bar { height: 6px; margin: 10px 0 2px; border-radius: 999px; background: var(--paper-2, rgba(0, 0, 0, .08)); overflow: hidden; }
@@ -3495,8 +3507,8 @@ html { touch-action: manipulation; }
       <span class="slider-label" id="slider-label">Добавьте сервер</span>
       <button class="slider-knob" id="slider-knob" type="button" aria-label="Потяните, чтобы подключиться">
         <svg class="slider-icon slider-power" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true">
-          <path d="M12 4v8" />
-          <path d="M6.34 6.34A8 8 0 1 0 17.66 6.34" />
+          <path d="M12 3.6l7 2.6v5.4c0 4.3-2.9 8-7 9.4-4.1-1.4-7-5.1-7-9.4V6.2l7-2.6z" />
+          <path d="M9.3 12.1l1.9 1.9 3.5-3.6" />
         </svg>
         <svg class="slider-icon slider-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="M5 12h14" />
@@ -4005,6 +4017,7 @@ html { touch-action: manipulation; }
     </div>
   </section>
 
+  <div class="autopilot-blur" aria-hidden="true"></div>
   <button class="autopilot" type="button" id="autopilot" aria-pressed="false" aria-label="Автопилот: сам выбирает рабочий сервер" title="Автопилот">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
       <circle cx="12" cy="12" r="7.6" />
@@ -18256,9 +18269,12 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
   async function refreshSub(id, button, silent) {
     const sub = findSub(id);
     if (!sub) return;
-    if (button) button.disabled = true;
-    const label = button ? button.textContent : '';
-    if (button) button.textContent = '…';
+    const label = button ? button.innerHTML : '';
+    if (button) {
+      button.disabled = true;
+      button.classList.add('is-busy');
+      if (!button.querySelector('svg')) button.textContent = '…';
+    }
     try {
       let text = sub.content;
       let usedStored = false;
@@ -18293,7 +18309,8 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
     } finally {
       if (button) {
         button.disabled = false;
-        button.textContent = label;
+        button.classList.remove('is-busy');
+        button.innerHTML = label;
       }
     }
   }
