@@ -3,7 +3,26 @@
 set -euo pipefail
 WORK="${WORK:-/var/tmp/work}"
 
-if [ ! -x "$WORK/and/android-15/aapt2" ]; then
+# Автономный тулчейн без Google SDK (если dl.google.com недоступен):
+#   aapt2 — npm aaptjs3, android.jar / d8 / apksigner / ecj — npm @drxiaozhi/minapk, Java — PyPI jdk4py.
+if [ ! -x "$WORK/and/android-15/aapt2" ] && [ ! -f "$WORK/and/tools/android.jar" ]; then
+  echo "▸ автономный тулчейн (npm + PyPI)"
+  mkdir -p "$WORK/and/tools" "$WORK/jdk" /tmp/dl && cd /tmp/dl
+  npm pack aaptjs3@2.0.2 >/dev/null 2>&1
+  npm pack @drxiaozhi/minapk@0.5.1 >/dev/null 2>&1
+  tar xzf aaptjs3-2.0.2.tgz && cp package/bin/x64/linux/aapt2 "$WORK/and/aapt2" && rm -rf package
+  mkdir -p mp && tar xzf drxiaozhi-minapk-0.5.1.tgz -C mp
+  cp mp/package/tools/android.jar mp/package/tools/d8.jar mp/package/tools/apksigner.jar mp/package/tools/ecj-3.45.0.jar "$WORK/and/tools/"
+  chmod +x "$WORK/and/aapt2"
+  python3 -m pip download -q --no-deps jdk4py==25.0.2.1 --only-binary=:all: -d jdk4 2>/dev/null || pip download -q --no-deps jdk4py==25.0.2.1 --only-binary=:all: -d jdk4
+  python3 -c "import zipfile,glob; zipfile.ZipFile(glob.glob('jdk4/*.whl')[0]).extractall('jdkx')"
+  cp -r jdkx/jdk4py/java-runtime "$WORK/jdk/" && chmod +x "$WORK/jdk/java-runtime/bin/"*
+  rm -rf /tmp/dl/mp /tmp/dl/jdk4 /tmp/dl/jdkx /tmp/dl/*.tgz
+  cd - >/dev/null
+  echo "✓ автономный тулчейн: $WORK/and/tools, $WORK/jdk"
+fi
+
+if [ ! -x "$WORK/and/android-15/aapt2" ] && [ ! -f "$WORK/and/tools/android.jar" ]; then
   echo "▸ Android build-tools 35 + platform 34"
   mkdir -p "$WORK/and" /tmp/dl
   curl -sL -o /tmp/dl/bt.zip https://dl.google.com/android/repository/build-tools_r35_linux.zip
