@@ -3451,6 +3451,21 @@ html { touch-action: manipulation; }
   .sheet-actions { display: flex; justify-content: flex-end; gap: 10px; padding: 14px 0 4px; }
   .sheet-actions .primary { min-height: 44px; padding: 0 20px; border: 0; border-radius: 999px; background: var(--accent); color: #fff; font: inherit; font-weight: 600; cursor: pointer; }
   .group-action.is-busy svg, .ping-all.is-busy svg { animation: ping-spin 1s linear infinite; }
+  /* v7: линия и флаг под слайдером убраны; иконка подключения под стрелкой */
+  .path { display: none !important; }
+  .slider-end { display: none !important; }
+  .slider[data-state="idle"]:not(.is-dragging) .slider-arrow { top: 4px; margin: 0 0 0 -12px; }
+  .slider[data-state="idle"]:not(.is-dragging) .slider-power { opacity: .8; top: 22px; margin: 0 0 0 -12px; transform: scale(.6); }
+  /* автопилот: размер и форма как у пунктов нижней панели */
+  .autopilot { left: calc(50% + 120px); bottom: calc(23px + env(safe-area-inset-bottom)); width: 52px; height: 44px; border-radius: 999px; }
+  .autopilot svg { width: 20px; height: 20px; }
+  @media (max-width: 380px) {
+    .autopilot { left: calc(50% + 114px); bottom: calc(22px + env(safe-area-inset-bottom)); width: 48px; height: 40px; }
+  }
+  /* полоска заполнения трафика */
+  .traffic-bar { height: 6px; margin: 10px 0 2px; border-radius: 999px; background: var(--paper-2, rgba(0, 0, 0, .08)); overflow: hidden; }
+  .traffic-bar span { display: block; height: 100%; border-radius: inherit; background: var(--accent); transition: width .4s ease; }
+  .heat-mode { margin: 12px 18px 0; }
 </style>
 <body data-view="home">
 
@@ -3552,6 +3567,7 @@ html { touch-action: manipulation; }
           <button type="button" data-sort="name" aria-pressed="true">Имя</button>
           <button type="button" data-sort="delay" aria-pressed="false">Пинг</button>
           <button type="button" data-sort="country" aria-pressed="false">Страна</button>
+          <button type="button" data-sort="source" aria-pressed="false">По порядку</button>
           <button type="button" data-sort="added" aria-pressed="false">Новые</button>
         </div>
       </div>
@@ -3757,6 +3773,10 @@ html { touch-action: manipulation; }
 
       <section class="group stats-group">
         <h2>Календарь</h2>
+        <div class="segmented segmented-sm heat-mode" id="heat-mode" role="group" aria-label="Показывать календарь">
+          <button type="button" data-mode="time" aria-pressed="true">По времени</button>
+          <button type="button" data-mode="traffic" aria-pressed="false">По трафику</button>
+        </div>
         <div class="heat-scroll">
           <div class="heat" id="heat" role="img" aria-label="Календарь активности"></div>
         </div>
@@ -16056,6 +16076,7 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
       localDesc: raw.localDesc == null ? null : cleanText(raw.localDesc, 240),
       hideDesc: raw.hideDesc === true,
       hideTraffic: raw.hideTraffic === true,
+      fixed: raw.fixed === true,
       meta: meta ? {
         title: cleanText(meta.title, 60),
         description: cleanText(meta.description, 160),
@@ -16155,6 +16176,13 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
       copy.sort(function (a, b) {
         const d = String(a.country || '').localeCompare(String(b.country || ''), 'ru');
         return d !== 0 ? d : byName(a, b);
+      });
+    } else if (mode === 'source') {
+      copy.sort(function (a, b) {
+        const oa = Number.isFinite(a.ord) ? a.ord : Number.MAX_SAFE_INTEGER;
+        const ob = Number.isFinite(b.ord) ? b.ord : Number.MAX_SAFE_INTEGER;
+        if (oa !== ob) return oa - ob;
+        return (Number(a.created) || 0) - (Number(b.created) || 0);
       });
     } else if (mode === 'added') {
       copy.sort(function (a, b) { return (Number(b.created) || 0) - (Number(a.created) || 0); });
@@ -16946,6 +16974,9 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
       if (time >= monthStart) monthSec += sec;
     });
 
+    const mode = heatMode();
+    let maxBytes = 1;
+    Object.keys(usage.data).forEach(function (k) { maxBytes = Math.max(maxBytes, dayBytes(k)); });
     const cells = [];
     const cursor = new Date(start);
     const labels = ['понедельник', 'вторник', 'среда', 'четверг', 'пятница', 'суббота', 'воскресенье'];
@@ -16955,11 +16986,12 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
     while (cursor <= today) {
       const key = dayKey(cursor);
       const sec = Number((usage.data[key] || {}).sec) || 0;
-      const level = usageLevel(sec);
+      const bytes = dayBytes(key);
+      const level = mode === 'traffic' ? trafficLevel(bytes, maxBytes) : usageLevel(sec);
       cells.push(
         '<i style="background:' + (level ? colors[level] : 'var(--paper-2)') + '" title="' +
         cursor.getDate() + ' ' + months[cursor.getMonth()] + ', ' + labels[(cursor.getDay() + 6) % 7] +
-        ' — ' + (sec ? hoursText(sec) : 'без VPN') + '"></i>'
+        ' — ' + (mode === 'traffic' ? (bytes ? formatBytes(bytes) : 'без VPN') : (sec ? hoursText(sec) : 'без VPN')) + '"></i>'
       );
       cursor.setDate(cursor.getDate() + 1);
     }
@@ -17017,20 +17049,23 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
     const list = document.getElementById('stats-days');
     if (list) {
       const rows = [];
-      let maxSec = 1;
+      let maxValue = 1;
       for (let i = 0; i < 7; i += 1) {
         const d = new Date(today);
         d.setDate(d.getDate() - i);
-        const sec = Number((usage.data[dayKey(d)] || {}).sec) || 0;
-        maxSec = Math.max(maxSec, sec);
-        rows.push({ date: d, sec: sec });
+        const key = dayKey(d);
+        const value = mode === 'traffic' ? dayBytes(key) : (Number((usage.data[key] || {}).sec) || 0);
+        maxValue = Math.max(maxValue, value);
+        rows.push({ date: d, value: value });
       }
       list.innerHTML = rows.map(function (row) {
         const label = i18nDay(row.date);
-        const width = row.sec ? Math.max(4, Math.round((row.sec / maxSec) * 100)) : 0;
+        const width = row.value ? Math.max(4, Math.round((row.value / maxValue) * 100)) : 0;
+        let text = '—';
+        if (row.value) text = mode === 'traffic' ? formatBytes(row.value) : hoursText(row.value);
         return '<div class="stats-day"><span class="stats-day-name">' + label + '</span>' +
           '<span class="stats-day-bar"><span style="width:' + width + '%"></span></span>' +
-          '<span class="stats-day-value">' + (row.sec ? hoursText(row.sec) : '—') + '</span></div>';
+          '<span class="stats-day-value">' + text + '</span></div>';
       }).join('');
     }
   }
@@ -17887,7 +17922,7 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
     toggle.appendChild(count);
     toggle.appendChild(chevron);
     // нажатие — раскрыть, зажатие — настройки подписки
-    if (sub) {
+    if (sub && !sub.fixed) {
       bindLongPress(toggle, function () { openSubEdit(sub.id); }, function () { toggleGroup(key); });
     } else {
       toggle.addEventListener('click', function () { toggleGroup(key); });
@@ -17922,6 +17957,7 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
       remove.className = 'group-action is-danger';
       remove.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M7 7l10 10M17 7 7 17"/></svg>';
       remove.title = 'Удалить подписку';
+      if (sub.fixed) remove.style.display = 'none';
       remove.setAttribute('aria-label', 'Удалить подписку ' + options.name);
       remove.addEventListener('click', function (event) {
         event.stopPropagation();
@@ -17934,7 +17970,8 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
     card.appendChild(head);
     const body = document.createElement('div');
     body.className = 'group-body';
-    const traffic = sub && !sub.hideTraffic ? trafficText(sub.meta && sub.meta.traffic) : '';
+    const trafficInfo = sub && !sub.hideTraffic ? trafficStats(sub.meta && sub.meta.traffic) : null;
+    const traffic = trafficInfo ? trafficInfo.text : '';
     const showDesc = !!(sub && desc && !sub.hideDesc);
     if (showDesc || traffic) {
       const info = document.createElement('div');
@@ -17949,6 +17986,18 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
         line.className = 'sub-traffic';
         line.textContent = traffic;
         info.appendChild(line);
+        if (trafficInfo.ratio != null) {
+          const bar = document.createElement('div');
+          bar.className = 'traffic-bar';
+          bar.setAttribute('role', 'progressbar');
+          bar.setAttribute('aria-valuemin', '0');
+          bar.setAttribute('aria-valuemax', '100');
+          bar.setAttribute('aria-valuenow', String(Math.round(trafficInfo.ratio * 100)));
+          const fill = document.createElement('span');
+          fill.style.width = (trafficInfo.ratio * 100).toFixed(1) + '%';
+          bar.appendChild(fill);
+          info.appendChild(bar);
+        }
       }
       body.appendChild(info);
     }
@@ -17957,7 +18006,9 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
       empty.className = 'sub-note';
       empty.textContent = options.manual
         ? 'Добавьте ссылку vless://, trojan://, vmess:// или ss:// — сервер появится здесь.'
-        : 'В подписке пока нет серверов. Нажмите «Обновить», чтобы загрузить заново.';
+        : (options.sub && options.sub.fixed
+          ? 'Серверов пока нет. Список обновляется автоматически.'
+          : 'В подписке пока нет серверов. Нажмите «Обновить», чтобы загрузить заново.');
       body.appendChild(empty);
     } else {
       servers.forEach(function (server) {
@@ -17985,11 +18036,12 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
     const cards = [];
 
     state.subs.slice().sort(function (a, b) {
+      if (!!a.fixed !== !!b.fixed) return a.fixed ? -1 : 1;
       return String(a.name || '').localeCompare(String(b.name || ''), 'ru');
     }).forEach(function (sub) {
       const all = state.servers.filter(function (server) { return server.subId === sub.id; });
       const list = sortServers(all).filter(matchesQuery);
-      if (query && !list.length) return;
+      if (query && !list.length && !sub.fixed) return;
       cards.push({
         key: groupKey(sub),
         name: sub.name,
@@ -18170,6 +18222,10 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
   function deleteSub(id) {
     const sub = findSub(id);
     if (!sub) return;
+    if (sub.fixed) {
+      showToast('Эту вкладку нельзя удалить');
+      return;
+    }
     const removed = state.servers.filter(function (server) { return server.subId === id; }).map(function (server) {
       return Object.assign({}, server);
     });
@@ -18197,12 +18253,12 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
     });
   }
 
-  async function refreshSub(id, button) {
+  async function refreshSub(id, button, silent) {
     const sub = findSub(id);
     if (!sub) return;
-    button.disabled = true;
-    const label = button.textContent;
-    button.textContent = '…';
+    if (button) button.disabled = true;
+    const label = button ? button.textContent : '';
+    if (button) button.textContent = '…';
     try {
       let text = sub.content;
       let usedStored = false;
@@ -18229,14 +18285,16 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
       renderServers();
       renderSubs();
       updateHome();
-      showToast(usedStored
+      if (!silent) showToast(usedStored
         ? 'Сеть недоступна — обновлено из сохранённого содержимого'
         : 'Обновлено: ' + parsed.length + ' ' + plural(parsed.length, ['сервер', 'сервера', 'серверов']));
     } catch (error) {
-      showToast('Не удалось обновить: ' + (error && error.message ? error.message : 'ошибка загрузки'));
+      if (!silent) showToast('Не удалось обновить: ' + (error && error.message ? error.message : 'ошибка загрузки'));
     } finally {
-      button.disabled = false;
-      button.textContent = label;
+      if (button) {
+        button.disabled = false;
+        button.textContent = label;
+      }
     }
   }
 
@@ -18246,8 +18304,9 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
     const oldLink = wasSubSelected ? oldSelected.link : '';
     const oldServers = state.servers.filter(function (server) { return server.subId === sub.id; });
     oldServers.forEach(function (server) { globe.removeServer(server.id); });
-    parsed.forEach(function (item) {
+    parsed.forEach(function (item, index) {
       const server = buildServer(item, sub, '');
+      server.ord = index;
       globe.addServer(server);
     });
     sub.updatedAt = Date.now();
@@ -18299,14 +18358,14 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
 
   async function fetchSubscription(url) {
     if (native && typeof native.fetchText === 'function') {
-      return await nativeFetch(url);
+      return checkSubscriptionText(await nativeFetch(url));
     }
     const controller = new AbortController();
     const timer = window.setTimeout(function () { controller.abort(); }, 12000);
     try {
       const response = await fetch(url, { signal: controller.signal, cache: 'no-store' });
       if (!response.ok) throw new Error('HTTP ' + response.status);
-      return await response.text();
+      return checkSubscriptionText(await response.text());
     } finally {
       clearTimeout(timer);
     }
@@ -18401,6 +18460,93 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
     if (total) parts.push('осталось ' + bytesText(Math.max(0, total - used)));
     if (expire) parts.push('до ' + dateText(expire));
     return parts.length ? 'Трафик: ' + parts.join(' · ') : '';
+  }
+
+  // ── v7: фиксированная вкладка «Бесплатные сервера» ─────────────────────
+  const FREE_SUB_ID = 'free';
+  const FREE_SUB_NAME = 'Бесплатные сервера';
+  const FREE_SUB_URL = 'https://raw.githubusercontent.com/g3rmanyobxod-commits/123/refs/heads/main/txt.txt';
+  const HOUR_MS = 3600000;
+
+  function ensureFreeSub() {
+    let sub = findSub(FREE_SUB_ID);
+    let added = false;
+    if (!sub) {
+      sub = {
+        id: FREE_SUB_ID, name: FREE_SUB_NAME, url: FREE_SUB_URL, content: '', updatedAt: 0,
+        autoName: false, desc: '', localDesc: null, hideDesc: false, hideTraffic: false, meta: null, fixed: true
+      };
+      state.subs.push(sub);
+      added = true;
+    }
+    // название и адрес вкладки фиксированы, пользователь их не меняет
+    sub.name = FREE_SUB_NAME;
+    sub.url = FREE_SUB_URL;
+    sub.fixed = true;
+    sub.autoName = false;
+    sub.localDesc = null;
+    sub.hideDesc = false;
+    if (added) {
+      persist();
+      renderServers(true);
+    }
+    // автообновление: при запуске, если данные старше часа, и далее раз в час
+    if (!sub.updatedAt || Date.now() - sub.updatedAt > HOUR_MS) refreshSub(FREE_SUB_ID, null, true);
+    window.setInterval(function () { refreshSub(FREE_SUB_ID, null, true); }, HOUR_MS);
+  }
+
+  // HTML-страница вместо подписки: сообщаем понятно, а не «серверов не найдено»
+  function checkSubscriptionText(text) {
+    const head = String(text || '').slice(0, 4000).toLowerCase();
+    if (head.indexOf('<html') !== -1 || head.indexOf('<!doctype') !== -1) {
+      throw new Error('Ссылка открывает страницу сайта, а не список серверов');
+    }
+    return text;
+  }
+
+  function trafficStats(raw) {
+    const text = trafficText(raw);
+    if (!text) return null;
+    const source = String(raw || '');
+    const pick = function (key) {
+      const match = source.match(new RegExp('(?:^|[;\\s])' + key + '\\s*=\\s*(\\d+)', 'i'));
+      return match ? Number(match[1]) : null;
+    };
+    const total = pick('total');
+    const used = (pick('upload') || 0) + (pick('download') || 0);
+    return { text: text, ratio: total ? Math.min(1, used / total) : null };
+  }
+
+  function dayBytes(key) {
+    const bucket = usage.data[key] || {};
+    return (Number(bucket.down) || 0) + (Number(bucket.up) || 0);
+  }
+
+  function trafficLevel(bytes, max) {
+    if (!bytes) return 0;
+    return Math.min(4, Math.max(1, Math.ceil((bytes / max) * 4)));
+  }
+
+  function heatMode() {
+    return store.read('vpn.heatMode', 'time') === 'traffic' ? 'traffic' : 'time';
+  }
+
+  function bindHeatMode() {
+    const bar = document.getElementById('heat-mode');
+    if (!bar) return;
+    const paint = function (mode) {
+      Array.prototype.forEach.call(bar.querySelectorAll('button'), function (button) {
+        button.setAttribute('aria-pressed', String(button.dataset.mode === mode));
+      });
+    };
+    bar.addEventListener('click', function (event) {
+      const button = event.target.closest('button');
+      if (!button) return;
+      store.write('vpn.heatMode', button.dataset.mode === 'traffic' ? 'traffic' : 'time');
+      paint(heatMode());
+      renderStats();
+    });
+    paint(heatMode());
   }
 
   function customServerName(link) {
@@ -18627,7 +18773,7 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
 
   function openServerMenu(id, anchor) {
     const server = findServer(id);
-    if (!server || !anchor) return;
+    if (!server || !anchor || server.subId === FREE_SUB_ID) return;
     openCtxMenu(anchor, [
       { label: 'Конфиг', icon: ICON_CONFIG, run: function () { openServerConfig(id); } },
       { label: 'Поделиться', icon: ICON_SHARE, run: function () { shareServer(id); } },
@@ -18639,7 +18785,7 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
 
   function openSubEdit(subId) {
     const sub = findSub(subId);
-    if (!sub) return;
+    if (!sub || sub.fixed) return;
     const original = sub.localDesc != null ? sub.localDesc : (sub.desc || '');
     const draft = { hideDesc: sub.hideDesc === true, hideTraffic: sub.hideTraffic === true };
     openInfoSheet({
@@ -18726,7 +18872,7 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
   }
 
   // ── v6: автопилот ─────────────────────────────────────────────────────
-  const AP = { busy: false, mode: 'unknown' };
+  const AP = { busy: false, mode: 'unknown', modeAt: 0 };
 
   function apOn() {
     return store.read('vpn.autopilot', false) === true;
@@ -18772,19 +18918,23 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
   };
 
   // белые списки: российские адреса открываются, зарубежные — нет
+    // белые списки: российские адреса открываются, зарубежные нет; все запросы параллельно
   async function apDetectWhitelist() {
     if (!native || typeof native.fetchText !== 'function') return 'unknown';
-    // тайм-аут: если нативный слой не ответил, автопилот не должен зависнуть
     const probe = function (url) {
       return Promise.race([
         nativeFetch(url).then(function () { return true; }, function () { return false; }),
-        new Promise(function (resolve) { window.setTimeout(function () { resolve(false); }, 6000); })
+        new Promise(function (resolve) { window.setTimeout(function () { resolve(false); }, 4000); })
       ]);
     };
-    const domestic = await Promise.all(['https://ya.ru/', 'https://vk.com/'].map(probe));
-    const foreign = await Promise.all([AP_PROBE_URL, 'https://cp.cloudflare.com/generate_204'].map(probe));
-    if (foreign.some(Boolean)) return 'open';
-    return domestic.some(Boolean) ? 'whitelist' : 'offline';
+    const results = await Promise.all([
+      probe('https://ya.ru/'),
+      probe('https://vk.com/'),
+      probe(AP_PROBE_URL),
+      probe('https://cp.cloudflare.com/generate_204')
+    ]);
+    if (results[2] || results[3]) return 'open';
+    return results[0] || results[1] ? 'whitelist' : 'offline';
   }
 
   function apCandidates(currentId) {
@@ -18804,7 +18954,7 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
     if (!native || typeof native.setAutopilot !== 'function') return;
     const payload = {
       enabled: apOn(),
-      intervalSec: 60,
+      intervalSec: 45,
       probeUrl: AP_PROBE_URL,
       timeoutMs: 4000,
       servers: []
@@ -18818,6 +18968,22 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
     try { native.setAutopilot(JSON.stringify(payload)); } catch (error) { /* мост недоступен */ }
   }
 
+    const AP_TIMEOUT = 3000;
+
+  // серверы проверяем группами по 3 параллельно; берём первый рабочий по порядку списка
+  async function apProbeFirst(list) {
+    for (let i = 0; i < list.length; i += 3) {
+      const batch = list.slice(i, i + 3);
+      const results = await Promise.all(batch.map(function (server) {
+        return probeServerNative(server, AP_TIMEOUT);
+      }));
+      for (let k = 0; k < results.length; k += 1) {
+        if (results[k] > 0) return { server: batch[k], ms: results[k] };
+      }
+    }
+    return null;
+  }
+
   async function apRun(reason) {
     if (AP.busy || !apOn()) return;
     if (!native || typeof native.probe !== 'function') {
@@ -18828,19 +18994,19 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
     try {
       const current = selectedServer();
       if (reason === 'tick' && current) {
-        const ok = await probeServerNative(current, 4000);
+        const ok = await probeServerNative(current, AP_TIMEOUT);
         if (ok > 0) return;
       }
-      if (vpnStateName() !== 'connected') AP.mode = await apDetectWhitelist();
-      const list = apCandidates(current ? current.id : '');
-      let chosen = null;
-      for (let i = 0; i < list.length; i += 1) {
-        const ms = await probeServerNative(list[i], 4000);
-        if (ms > 0) {
-          chosen = { server: list[i], ms: ms };
-          break;
-        }
+      // белые списки определяем не чаще раза в 10 минут и только без VPN
+      if (vpnStateName() !== 'connected' && Date.now() - AP.modeAt > 600000) {
+        AP.mode = await apDetectWhitelist();
+        AP.modeAt = Date.now();
       }
+      const all = apCandidates(current ? current.id : '');
+      const list = reason === 'tick' && current
+        ? all.filter(function (server) { return server.id !== current.id; })
+        : all;
+      const chosen = await apProbeFirst(list);
       if (!chosen) {
         showToast('Рабочих серверов сейчас не найдено');
         return;
@@ -18855,7 +19021,7 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
       } else if (reason === 'enable') {
         showToast(prefix + 'Автопилот: текущий сервер работает');
       }
-      apSyncNative(list);
+      apSyncNative(all);
     } finally {
       AP.busy = false;
     }
@@ -18879,7 +19045,7 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
     });
     window.setInterval(function () {
       if (apOn() && document.visibilityState !== 'hidden') apRun('tick');
-    }, 90000);
+    }, 45000);
     syncAutopilotUI();
     if (apOn()) apSyncNative(apCandidates(selectedServer() ? selectedServer().id : ''));
   }
@@ -19324,8 +19490,9 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
         content: text,
         updatedAt: Date.now()
       };
-      const added = parsed.map(function (item) {
+      const added = parsed.map(function (item, index) {
         const server = buildServer(item, sub, '');
+        server.ord = index;
         globe.addServer(server);
         return server;
       });
@@ -19867,6 +20034,8 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
   bindInfoSheet();
   bindToastSwipe();
   bindAutopilotUI();
+  ensureFreeSub();
+  bindHeatMode();
   if (ui.pingAll) ui.pingAll.innerHTML = PING_SVG;
   // щипок двумя пальцами не масштабирует страницу; глобус обрабатывает жесты сам
   document.addEventListener('touchmove', function (event) {

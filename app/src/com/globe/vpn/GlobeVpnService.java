@@ -445,11 +445,11 @@ public class GlobeVpnService extends VpnService {
         thread.start();
     }
 
-    // раз в минуту проверяем текущий сервер; при отказе перебираем кандидатов из настроек автопилота
+    // раз в 45 секунд проверяем текущий сервер; при отказе пробуем кандидатов группами по 3 параллельно
     private void autopilotLoop() {
         while (running) {
             try {
-                Thread.sleep(60000L);
+                Thread.sleep(45000L);
             } catch (InterruptedException error) {
                 return;
             }
@@ -462,13 +462,50 @@ public class GlobeVpnService extends VpnService {
                 if (probeMs(currentConfig, url, timeout) > 0) continue;
                 JSONArray servers = cfg.optJSONArray("servers");
                 if (servers == null) continue;
-                for (int i = 0; i < servers.length() && running; i += 1) {
-                    JSONObject server = servers.optJSONObject(i);
-                    if (server == null || server.optJSONObject("config") == null) continue;
-                    String candidate = canonical(server.optJSONObject("config").toString());
-                    if (candidate.equals(currentConfig)) continue;
-                    if (probeMs(candidate, url, timeout) > 0) {
-                        switchConfig(candidate, server.optString("name", ""));
+                for (int from = 0; from < servers.length() && running; from += 3) {
+                    int to = Math.min(servers.length(), from + 3);
+                    int size = to - from;
+                    final String[] candidates = new String[size];
+                    final String[] names = new String[size];
+                    final long[] delays = new long[size];
+                    Thread[] workers = new Thread[size];
+                    for (int k = 0; k < size; k += 1) {
+                        JSONObject server = servers.optJSONObject(from + k);
+                        if (server == null || server.optJSONObject("config") == null) continue;
+                        String candidate = canonical(server.optJSONObject("config").toString());
+                        if (candidate.equals(currentConfig)) continue;
+                        candidates[k] = candidate;
+                        names[k] = server.optString("name", "");
+                        final int slot = k;
+                        final String probeConfig = candidate;
+                        final String probeUrl = url;
+                        final int probeTimeout = timeout;
+                        workers[k] = new Thread(new Runnable() { // from class: com.globe.vpn.GlobeVpnService.7
+                            @Override // java.lang.Runnable
+                            public void run() {
+                                delays[slot] = probeMs(probeConfig, probeUrl, probeTimeout);
+                            }
+                        }, "globe-autopilot-batch");
+                        workers[k].setDaemon(true);
+                        workers[k].start();
+                    }
+                    for (Thread worker : workers) {
+                        if (worker == null) continue;
+                        try {
+                            worker.join(timeout + 4000L);
+                        } catch (InterruptedException error) {
+                            return;
+                        }
+                    }
+                    int winner = -1;
+                    for (int k = 0; k < size; k += 1) {
+                        if (candidates[k] != null && delays[k] > 0) {
+                            winner = k;
+                            break;
+                        }
+                    }
+                    if (winner >= 0) {
+                        switchConfig(candidates[winner], names[winner]);
                         break;
                     }
                 }

@@ -564,33 +564,47 @@ public class MainActivity extends Activity {
             MainActivity.this.pool.execute(new Runnable() {
                 @Override // java.lang.Runnable
                 public void run() {
-                    HttpURLConnection connection = null;
                     String body = "";
                     boolean ok = false;
-                    try {
-                        connection = (HttpURLConnection) new java.net.URL(url).openConnection();
-                        connection.setConnectTimeout(10000);
-                        connection.setReadTimeout(12000);
-                        connection.setInstanceFollowRedirects(true);
-                        connection.setRequestProperty("User-Agent", "GlobeVPN/1.0 (Android)");
-                        connection.setRequestProperty("Accept", "*/*");
-                        int code = connection.getResponseCode();
-                        if (code >= 200 && code < 300) {
-                            InputStream input = connection.getInputStream();
-                            ByteArrayOutputStream buffer = new ByteArrayOutputStream();
-                            byte[] chunk = new byte[8192];
-                            int count;
-                            while ((count = input.read(chunk)) > 0) {
-                                buffer.write(chunk, 0, count);
+                    // некоторые серверы подписок отдают HTML-витрину тому, кто не похож на VPN-клиент,
+                    // поэтому перебираем несколько User-Agent и пропускаем HTML-ответы
+                    String[] agents = {
+                            "Happ/1.0",
+                            "v2rayNG/1.8.5",
+                            "GlobeVPN/1.0 (Android)"
+                    };
+                    for (String agent : agents) {
+                        HttpURLConnection connection = null;
+                        try {
+                            connection = (HttpURLConnection) new java.net.URL(url).openConnection();
+                            connection.setConnectTimeout(10000);
+                            connection.setReadTimeout(12000);
+                            connection.setInstanceFollowRedirects(true);
+                            connection.setRequestProperty("User-Agent", agent);
+                            connection.setRequestProperty("Accept", "*/*");
+                            int code = connection.getResponseCode();
+                            if (code >= 200 && code < 300) {
+                                InputStream input = connection.getInputStream();
+                                ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+                                byte[] chunk = new byte[8192];
+                                int count;
+                                while ((count = input.read(chunk)) > 0) {
+                                    buffer.write(chunk, 0, count);
+                                }
+                                input.close();
+                                String text = buffer.toString("UTF-8");
+                                if (looksLikeHtml(text)) {
+                                    continue;
+                                }
+                                body = metaHeaders(connection) + text;
+                                ok = true;
+                                break;
                             }
-                            input.close();
-                            body = metaHeaders(connection) + buffer.toString("UTF-8");
-                            ok = true;
-                        }
-                    } catch (Throwable ignored) {
-                    } finally {
-                        if (connection != null) {
-                            connection.disconnect();
+                        } catch (Throwable ignored) {
+                        } finally {
+                            if (connection != null) {
+                                connection.disconnect();
+                            }
                         }
                     }
                     MainActivity.this.callJs("window.__onFetch && window.__onFetch("
@@ -599,6 +613,12 @@ public class MainActivity extends Activity {
                             + JSONObject.quote(body) + ")");
                 }
             });
+        }
+
+        private boolean looksLikeHtml(String text) {
+            String head = text.length() > 4000 ? text.substring(0, 4000) : text;
+            String lower = head.trim().toLowerCase(java.util.Locale.ROOT);
+            return lower.startsWith("<!doctype") || lower.startsWith("<html") || lower.contains("<html");
         }
 
         @JavascriptInterface
