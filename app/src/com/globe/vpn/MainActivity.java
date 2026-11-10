@@ -64,6 +64,14 @@ public class MainActivity extends Activity {
     private final ExecutorService pool = Executors.newFixedThreadPool(6);
     private String pendingLink = null;
 
+    // Android 13+: без разрешения уведомления (в том числе статус VPN) не показываются
+    void requestNotificationPermission() {
+        if (Build.VERSION.SDK_INT >= 33
+                && checkSelfPermission("android.permission.POST_NOTIFICATIONS") != 0) {
+            requestPermissions(new String[]{"android.permission.POST_NOTIFICATIONS"}, 4103);
+        }
+    }
+
     @Override // android.app.Activity
     protected void onCreate(Bundle bundle) {
         super.onCreate(bundle);
@@ -71,6 +79,7 @@ public class MainActivity extends Activity {
         window.setStatusBarColor(Color.parseColor("#F2F0EA"));
         window.setNavigationBarColor(Color.parseColor("#F2F0EA"));
         setLightSystemBars(true);
+        requestNotificationPermission();
         WebView webView = new WebView(this);
         this.web = webView;
         webView.setBackgroundColor(Color.parseColor("#F2F0EA"));
@@ -647,6 +656,7 @@ public class MainActivity extends Activity {
                 @Override // java.lang.Runnable
                 public void run() {
                     try {
+                        MainActivity.this.requestNotificationPermission();
                         Intent prepare = VpnService.prepare(MainActivity.this);
                         String str3 = "";
                         if (prepare != null) {
@@ -773,6 +783,48 @@ public class MainActivity extends Activity {
                             + JSONObject.quote(payload) + ")");
                 }
             });
+        }
+
+        // Проверка работоспособности сервера полным конфигом; ответ уходит в window.__onProbe(key, ms)
+        @JavascriptInterface
+        public void probe(final String key, final String configJson, final String url, final int timeoutMs) {
+            final String probeUrl = (url == null || url.isEmpty()) ? "https://www.gstatic.com/generate_204" : url;
+            final long[] result = {-1L};
+            final Thread worker = new Thread(new Runnable() { // from class: com.globe.vpn.MainActivity.Bridge.probe.1
+                @Override // java.lang.Runnable
+                public void run() {
+                    try {
+                        go.Seq.setContext(MainActivity.this.getApplicationContext());
+                        libv2ray.Libv2ray.initCoreEnv(MainActivity.this.getFilesDir().getAbsolutePath(), "");
+                        result[0] = libv2ray.Libv2ray.measureOutboundDelay(
+                                GlobeVpnService.probeConfig(configJson), probeUrl);
+                    } catch (Throwable error) {
+                        result[0] = -1L;
+                    }
+                }
+            }, "globe-probe");
+            worker.setDaemon(true);
+            MainActivity.this.pool.execute(new Runnable() { // from class: com.globe.vpn.MainActivity.Bridge.probe.2
+                @Override // java.lang.Runnable
+                public void run() {
+                    long delay = -1L;
+                    try {
+                        worker.start();
+                        worker.join(Math.max(1000L, timeoutMs) + 3000L);
+                        delay = worker.isAlive() ? -1L : result[0];
+                    } catch (InterruptedException error) {
+                        delay = -1L;
+                    }
+                    MainActivity.this.callJs("window.__onProbe && window.__onProbe("
+                            + JSONObject.quote(key == null ? "" : key) + "," + delay + ")");
+                }
+            });
+        }
+
+        @JavascriptInterface
+        public void setAutopilot(final String json) {
+            MainActivity.this.getSharedPreferences("globe-vpn", 0).edit()
+                    .putString("autopilot", json == null ? "{}" : json).apply();
         }
 
         @JavascriptInterface

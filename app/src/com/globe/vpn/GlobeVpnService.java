@@ -8,6 +8,7 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.net.VpnService;
 import org.json.JSONArray;
+import org.json.JSONObject;
 import android.os.Build;
 import android.os.ParcelFileDescriptor;
 import go.Seq;
@@ -41,6 +42,9 @@ public class GlobeVpnService extends VpnService {
     private volatile boolean running = false;
     private Thread statsThread;
     private ParcelFileDescriptor tunnel;
+    // фоновый автопилот: текущий конфиг (нормализованный) и поток проверок
+    private volatile String currentConfig = "";
+    private volatile Thread autopilotThread;
 
     static void reset() {
         state = STATE_IDLE;
@@ -193,7 +197,9 @@ public class GlobeVpnService extends VpnService {
                         }
                     }
                 }, "globe-vpn-core").start();
+                currentConfig = canonical(configForThread);
                 startStats();
+                startAutopilot();
                 notifyState(activeName);
                 return 1;
             }
@@ -284,6 +290,11 @@ public class GlobeVpnService extends VpnService {
         } catch (Throwable unused) {
         }
         this.core = null;
+        Thread ap = this.autopilotThread;
+        if (ap != null) {
+            ap.interrupt();
+            this.autopilotThread = null;
+        }
         Thread thread = this.statsThread;
         if (thread != null) {
             thread.interrupt();
@@ -400,6 +411,125 @@ public class GlobeVpnService extends VpnService {
             notificationManager.notify(NOTIFY_ID, builder.build());
         } catch (Throwable ignored) {
         }
+    }
+
+    // Конфиг для проверки: без входящих портов, чтобы не конфликтовать с работающим туннелем
+    static String probeConfig(String json) {
+        try {
+            JSONObject config = new JSONObject(json);
+            config.put("inbounds", new JSONArray());
+            return config.toString();
+        } catch (Throwable error) {
+            return json;
+        }
+    }
+
+    private static String canonical(String json) {
+        try {
+            return new JSONObject(json).toString();
+        } catch (Throwable error) {
+            return json == null ? "" : json;
+        }
+    }
+
+    private void startAutopilot() {
+        if (this.autopilotThread != null) return;
+        Thread thread = new Thread(new Runnable() { // from class: com.globe.vpn.GlobeVpnService.4
+            @Override // java.lang.Runnable
+            public void run() {
+                autopilotLoop();
+            }
+        }, "globe-vpn-autopilot");
+        thread.setDaemon(true);
+        this.autopilotThread = thread;
+        thread.start();
+    }
+
+    // раз в минуту проверяем текущий сервер; при отказе перебираем кандидатов из настроек автопилота
+    private void autopilotLoop() {
+        while (running) {
+            try {
+                Thread.sleep(60000L);
+            } catch (InterruptedException error) {
+                return;
+            }
+            if (!running || !STATE_CONNECTED.equals(state)) continue;
+            try {
+                JSONObject cfg = new JSONObject(getSharedPreferences("globe-vpn", 0).getString("autopilot", "{}"));
+                if (!cfg.optBoolean("enabled", false)) continue;
+                int timeout = cfg.optInt("timeoutMs", 4000);
+                String url = cfg.optString("probeUrl", "https://www.gstatic.com/generate_204");
+                if (probeMs(currentConfig, url, timeout) > 0) continue;
+                JSONArray servers = cfg.optJSONArray("servers");
+                if (servers == null) continue;
+                for (int i = 0; i < servers.length() && running; i += 1) {
+                    JSONObject server = servers.optJSONObject(i);
+                    if (server == null || server.optJSONObject("config") == null) continue;
+                    String candidate = canonical(server.optJSONObject("config").toString());
+                    if (candidate.equals(currentConfig)) continue;
+                    if (probeMs(candidate, url, timeout) > 0) {
+                        switchConfig(candidate, server.optString("name", ""));
+                        break;
+                    }
+                }
+            } catch (Throwable ignored) {
+            }
+        }
+    }
+
+    private long probeMs(final String config, final String url, final int timeoutMs) {
+        final long[] result = {-1L};
+        Thread worker = new Thread(new Runnable() { // from class: com.globe.vpn.GlobeVpnService.5
+            @Override // java.lang.Runnable
+            public void run() {
+                try {
+                    Seq.setContext(getApplicationContext());
+                    Libv2ray.initCoreEnv(getFilesDir().getAbsolutePath(), "");
+                    result[0] = Libv2ray.measureOutboundDelay(probeConfig(config), url);
+                } catch (Throwable error) {
+                    result[0] = -1L;
+                }
+            }
+        }, "globe-autopilot-probe");
+        worker.setDaemon(true);
+        worker.start();
+        try {
+            worker.join(timeoutMs + 3000L);
+        } catch (InterruptedException error) {
+            return -1L;
+        }
+        return worker.isAlive() ? -1L : result[0];
+    }
+
+    // переключение без пересоздания туннеля: останавливаем ядро и запускаем с тем же fd
+    private synchronized void switchConfig(final String config, String name) {
+        final CoreController controller = this.core;
+        final ParcelFileDescriptor tun = this.tunnel;
+        if (controller == null || tun == null) return;
+        try {
+            controller.stopLoop();
+        } catch (Throwable ignored) {
+        }
+        final int fd = tun.getFd();
+        currentConfig = config;
+        activeName = name == null ? "" : name;
+        noticeServer = activeName;
+        noticePing = -1;
+        new Thread(new Runnable() { // from class: com.globe.vpn.GlobeVpnService.6
+            @Override // java.lang.Runnable
+            public void run() {
+                try {
+                    controller.startLoop(config, fd);
+                } catch (Throwable th) {
+                    String message = th.getMessage();
+                    GlobeVpnService.lastError = message == null ? th.getClass().getSimpleName() : message;
+                    GlobeVpnService.this.stopEverything();
+                    GlobeVpnService.state = GlobeVpnService.STATE_ERROR;
+                    GlobeVpnService.this.stopSelf();
+                }
+            }
+        }, "globe-vpn-core").start();
+        notifyState(activeName);
     }
 
     /* v3: обновление уведомления, когда меняется пинг */

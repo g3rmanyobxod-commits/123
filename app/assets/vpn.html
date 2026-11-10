@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
   <meta name="theme-color" content="#f2f0ea">
   <title>smpl</title>
   <meta name="description" content="smpl: серверы и подписки, карта, подключение.">
@@ -3334,6 +3334,124 @@ body[data-many="true"] .srv { transition: none; }
 #view-settings .row-note, #view-stats .row-note { font-size: 12.5px; }
 #view-stats .stats-mono { line-height: 1; }
 </style>
+<style id="v6-ui">
+/* v6: карта и слайдер */
+.path-line::after { display: none; }
+.slider-icon { left: 50%; top: 50%; margin: -12px 0 0 -12px; }
+.slider .slider-arrow { opacity: 0; transform: scale(.7); }
+.slider[data-state="idle"] .slider-arrow { opacity: 1; transform: scale(1); }
+.slider[data-state="idle"] .slider-power { opacity: 0; transform: scale(.7); }
+.slider.is-dragging .slider-power { opacity: 0; transform: scale(.7); }
+.slider.is-dragging .slider-arrow { opacity: 1; transform: scale(1); }
+.slider[data-state="empty"] .slider-arrow,
+.slider[data-state="connected"] .slider-arrow,
+.slider[data-state="connecting"] .slider-arrow,
+.slider[data-state="error"] .slider-arrow { opacity: 0; transform: scale(.7); }
+.slider-end {
+  position: absolute;
+  right: 6px;
+  top: 6px;
+  width: 52px;
+  height: 52px;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .3s ease;
+}
+.slider-end svg { width: 22px; height: 22px; }
+.slider[data-state="idle"] .slider-end { opacity: .5; }
+[data-theme="night"] .slider-end { color: var(--paper); }
+.slider.is-dragging .slider-label { left: 68px; right: 0; width: auto; max-width: none; text-align: center; transform: translateY(-50%); opacity: .4; transition: opacity .2s ease; }
+.slider.is-dragging.is-armed .slider-label { opacity: 0; }
+.slider[data-state="connected"] { animation: none; }
+.slider-knob { transition: transform .38s cubic-bezier(.3, .9, .26, 1), background-color .25s ease, color .25s ease; }
+.slider.is-dragging .slider-knob { transition: none; }
+
+/* автопилот: отдельная стеклянная кнопка на уровне нижнего меню */
+.autopilot {
+  position: fixed;
+  left: calc(50% + 129px);
+  bottom: calc(16px + env(safe-area-inset-bottom));
+  z-index: 41;
+  width: 58px;
+  height: 58px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 1px solid var(--dock-line);
+  border-radius: 999px;
+  background: var(--dock-bg);
+  color: var(--muted);
+  box-shadow: 0 18px 44px var(--shadow);
+  -webkit-backdrop-filter: blur(24px) saturate(170%);
+  backdrop-filter: blur(24px) saturate(170%);
+  transition: background-color .25s ease, color .25s ease, border-color .25s ease;
+}
+.autopilot svg { width: 22px; height: 22px; }
+.autopilot:hover { color: var(--ink); }
+.autopilot[aria-pressed="true"] { background: var(--accent); border-color: transparent; color: #fff; }
+@media (max-width: 380px) {
+  .dock { transform: translateX(-50%) scale(.92); }
+  .autopilot { left: calc(50% + 118px); width: 52px; height: 52px; }
+}
+
+/* анимация выпадающих меню (scale — отдельное свойство, не конфликтует с transform из JS) */
+@keyframes menu-in { from { opacity: 0; scale: .92; } to { opacity: 1; scale: 1; } }
+@keyframes menu-out { from { opacity: 1; scale: 1; } to { opacity: 0; scale: .94; } }
+.srv-pop { transform-origin: 50% 0; animation: menu-in .2s cubic-bezier(.2, .8, .2, 1) both; }
+.srv-pop.is-closing { animation: menu-out .14s ease both; }
+.ctx-menu {
+  position: fixed;
+  z-index: 60;
+  min-width: 212px;
+  padding: 6px;
+  border: 1px solid var(--line-strong);
+  border-radius: 16px;
+  background: var(--paper);
+  box-shadow: 0 18px 44px var(--shadow);
+  transform-origin: var(--origin-x, 50%) var(--origin-y, 0);
+  animation: menu-in .2s cubic-bezier(.2, .8, .2, 1) both;
+}
+.ctx-menu.is-closing { animation: menu-out .14s ease both; }
+.ctx-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 11px 12px;
+  border: 0;
+  border-radius: 10px;
+  background: none;
+  color: var(--ink);
+  font: 500 14px/1.2 var(--sans, inherit);
+  text-align: left;
+}
+.ctx-item:hover, .ctx-item:focus-visible { background: var(--paper-2, rgba(0, 0, 0, .05)); outline: none; }
+.ctx-item svg { width: 17px; height: 17px; flex: 0 0 auto; color: var(--muted); }
+.ctx-item.is-danger { color: var(--danger); }
+.ctx-sep { height: 1px; margin: 4px 6px; background: var(--line); }
+
+/* подписка: раскрытое описание и трафик */
+.sub-info { padding: 4px 16px 12px 56px; font-family: var(--mono); font-size: 11.5px; line-height: 1.5; color: var(--muted); }
+.sub-info p { margin: 0 0 6px; white-space: normal; overflow-wrap: anywhere; }
+.sub-info .sub-traffic { color: var(--ink); }
+.group-action.is-ping svg { width: 16px; height: 16px; }
+.group-action.is-busy svg { animation: ping-spin 1s linear infinite; }
+@keyframes ping-spin { to { transform: rotate(360deg); } }
+.ping-all svg { width: 18px; height: 18px; display: block; }
+.ping-all.is-busy svg { animation: ping-spin 1s linear infinite; }
+.cfg-pre { margin: 0; max-height: 52vh; overflow: auto; padding: 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--paper-2, rgba(0, 0, 0, .04)); font: 11px/1.5 var(--mono); white-space: pre-wrap; overflow-wrap: anywhere; user-select: text; -webkit-user-select: text; }
+.toast.is-dragging { transition: none; }
+html { touch-action: manipulation; }
+  .group-card.is-open .group-desc { display: none; }
+  .toast { transition: opacity .24s ease, translate .24s cubic-bezier(.3, .9, .26, 1); }
+  .toast.is-dragging { transition: none; }
+  .sheet-actions { display: flex; justify-content: flex-end; gap: 10px; padding: 14px 0 4px; }
+  .sheet-actions .primary { min-height: 44px; padding: 0 20px; border: 0; border-radius: 999px; background: var(--accent); color: #fff; font: inherit; font-weight: 600; cursor: pointer; }
+  .group-action.is-busy svg, .ping-all.is-busy svg { animation: ping-spin 1s linear infinite; }
+</style>
 <body data-view="home">
 
 <svg class="glass-defs" width="0" height="0" aria-hidden="true" focusable="false"><defs>
@@ -3362,8 +3480,12 @@ body[data-many="true"] .srv { transition: none; }
       <span class="slider-label" id="slider-label">Добавьте сервер</span>
       <button class="slider-knob" id="slider-knob" type="button" aria-label="Потяните, чтобы подключиться">
         <svg class="slider-icon slider-power" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true">
-          <path d="M12 3.5v8" />
-          <path d="M6.8 6.9a8 8 0 1 0 10.4 0" />
+          <path d="M12 4v8" />
+          <path d="M6.34 6.34A8 8 0 1 0 17.66 6.34" />
+        </svg>
+        <svg class="slider-icon slider-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M5 12h14" />
+          <path d="M13 6l6 6-6 6" />
         </svg>
         <svg class="slider-icon slider-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true">
           <path d="M12 5v14M5 12h14" />
@@ -3372,6 +3494,9 @@ body[data-many="true"] .srv { transition: none; }
           <rect x="7.4" y="7.4" width="9.2" height="9.2" rx="2.2" />
         </svg>
       </button>
+      <span class="slider-end" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M12 4v8" /><path d="M6.34 6.34A8 8 0 1 0 17.66 6.34" /></svg>
+      </span>
     </div>
     <p class="conn-status" id="conn-status" role="status" aria-live="polite">Нет сервера</p>
     <p class="conn-stats" id="conn-stats" hidden></p>
@@ -3418,7 +3543,7 @@ body[data-many="true"] .srv { transition: none; }
 
       <div class="list-tools" id="server-tools">
         <input class="search" id="server-search" type="search" autocomplete="off" spellcheck="false" placeholder="Поиск: город, страна, протокол" aria-label="Поиск серверов">
-        <button class="ghost ping-all" type="button" id="ping-all">Задержка</button>
+        <button class="ghost ping-all" type="button" id="ping-all" aria-label="Проверить задержку" title="Проверить задержку"></button>
       </div>
 
       <div class="sort-bar">
@@ -3640,7 +3765,6 @@ body[data-many="true"] .srv { transition: none; }
           <i data-level="0"></i><i data-level="1"></i><i data-level="2"></i><i data-level="3"></i><i data-level="4"></i>
           <span>больше</span>
         </div>
-        <p class="row-note">Чем больше часов в VPN за день, тем ярче квадрат.</p>
       </section>
 
       <section class="group stats-group">
@@ -3861,6 +3985,12 @@ body[data-many="true"] .srv { transition: none; }
     </div>
   </section>
 
+  <button class="autopilot" type="button" id="autopilot" aria-pressed="false" aria-label="Автопилот: сам выбирает рабочий сервер" title="Автопилот">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="7.6" />
+      <path d="M14.9 9.1 13.2 13.2 9.1 14.9 10.8 10.8Z" />
+    </svg>
+  </button>
   <nav class="dock" id="dock" aria-label="Разделы">
     <span class="dock-mark" aria-hidden="true"></span>
     <button class="dock-item is-active" type="button" data-nav="home" aria-label="Подключение" aria-current="page">
@@ -3895,6 +4025,19 @@ body[data-many="true"] .srv { transition: none; }
   </nav>
 
   <div class="sheet-backdrop" id="sheet-backdrop" hidden></div>
+  <section class="sheet" id="info-sheet" role="dialog" aria-modal="true" aria-labelledby="info-title" hidden>
+    <div class="sheet-grip" aria-hidden="true"></div>
+    <header class="sheet-head">
+      <div class="sheet-head-copy">
+        <p class="eyebrow" id="info-eyebrow"></p>
+        <h2 id="info-title"></h2>
+      </div>
+      <button class="sheet-close" type="button" id="info-close" aria-label="Закрыть">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><path d="M7 7l10 10M17 7 7 17"/></svg>
+      </button>
+    </header>
+    <div class="sheet-body" id="info-body"></div>
+  </section>
   <section class="sheet" id="server-sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title" hidden>
     <div class="sheet-grip" aria-hidden="true"></div>
     <header class="sheet-head">
@@ -4290,12 +4433,21 @@ window.GEO_CITIES = [
     this.renderGroup();
   };
 
-  DotGlobe.prototype.closeGroup = function () {
+    DotGlobe.prototype.closeGroup = function () {
+    const self = this;
     this.openGroup = null;
-    if (this.popEl) this.popEl.style.display = 'none';
+    if (this.popEl && this.popEl.style.display !== 'none') {
+      const pop = this.popEl;
+      pop.classList.add('is-closing');
+      window.clearTimeout(this._popTimer);
+      this._popTimer = window.setTimeout(function () {
+        pop.style.display = 'none';
+        pop.classList.remove('is-closing');
+      }, 140);
+    }
     Object.keys(this.groupEls || {}).forEach(function (key) {
-      this.groupEls[key].setAttribute('aria-expanded', 'false');
-    }, this);
+      self.groupEls[key].setAttribute('aria-expanded', 'false');
+    });
   };
 
   DotGlobe.prototype.renderGroup = function () {
@@ -4315,6 +4467,8 @@ window.GEO_CITIES = [
       this.popEl = pop;
     }
     const pop = this.popEl;
+    window.clearTimeout(this._popTimer);
+    pop.classList.remove('is-closing');
     pop.innerHTML = '';
     pop.style.display = 'block';
     const head = document.createElement('div');
@@ -4411,6 +4565,7 @@ window.GEO_CITIES = [
     if (!server || !server.id) return false;
     if (this.servers.some(function (item) { return item.id === server.id; })) return false;
     this.servers.push(server);
+    this.clustersDirty = true;
     this.createMarker(server);
     return true;
   };
@@ -4481,6 +4636,7 @@ window.GEO_CITIES = [
     delete this.serverVec[id];
     const index = this.servers.findIndex(function (server) { return server.id === id; });
     if (index >= 0) this.servers.splice(index, 1);
+    this.clustersDirty = true;
     if (this.selectedId === id) {
       this.selectedId = null;
       this.arc = null;
@@ -4713,123 +4869,213 @@ window.GEO_CITIES = [
     this.radius = this.baseR * this.zoomLevel;
   };
 
+    // Кластеры по близости (ближе 200 км по дуге). Состав фиксирован и не зависит от поворота,
+  // поэтому точки не прыгают и не наползают друг на друга при вращении.
+  DotGlobe.prototype.rebuildClusters = function () {
+    const CLUSTER_KM = 200;
+    const rad = Math.PI / 180;
+    const items = this.servers.filter(function (server) {
+      return this.serverVec[server.id] && this.markers.has(server.id);
+    }, this);
+    const parent = items.map(function (_, i) { return i; });
+    const find = function (i) {
+      while (parent[i] !== i) {
+        parent[i] = parent[parent[i]];
+        i = parent[i];
+      }
+      return i;
+    };
+    const pos = items.map(function (server) {
+      return { la: Number(server.lat) * rad, lo: Number(server.lng) * rad };
+    });
+    for (let i = 0; i < items.length; i += 1) {
+      for (let j = i + 1; j < items.length; j += 1) {
+        const a = pos[i];
+        const b = pos[j];
+        const h = Math.sin((b.la - a.la) / 2) * Math.sin((b.la - a.la) / 2)
+          + Math.cos(a.la) * Math.cos(b.la) * Math.sin((b.lo - a.lo) / 2) * Math.sin((b.lo - a.lo) / 2);
+        const km = 2 * 6371 * Math.asin(Math.min(1, Math.sqrt(h)));
+        if (km <= CLUSTER_KM) parent[find(i)] = find(j);
+      }
+    }
+    const map = {};
+    items.forEach(function (server, i) {
+      const root = find(i);
+      if (!map[root]) map[root] = [];
+      map[root].push(server);
+    });
+    const serverVec = this.serverVec;
+    this.clusters = Object.keys(map).map(function (root) {
+      const members = map[root].slice().sort(function (a, b) { return String(a.id).localeCompare(String(b.id)); });
+      const v = { x: 0, y: 0, z: 0 };
+      members.forEach(function (m) {
+        const q = serverVec[m.id];
+        v.x += q.x;
+        v.y += q.y;
+        v.z += q.z;
+      }, this);
+      const len = Math.hypot(v.x, v.y, v.z) || 1;
+      return { key: 'c-' + members[0].id, members: members, vec: { x: v.x / len, y: v.y / len, z: v.z / len } };
+    });
+    this.clusterOf = {};
+    this.clusters.forEach(function (cluster) {
+      cluster.members.forEach(function (m) { this.clusterOf[m.id] = cluster; }, this);
+    }, this);
+    this.clustersDirty = false;
+    this.clusterCount = this.servers.length;
+  };
+
   DotGlobe.prototype.updateMarkers = function () {
-    const p = {};
+    if (this.clustersDirty || !this.clusters || this.clusterCount !== this.servers.length) this.rebuildClusters();
     const self = this;
-    const visible = [];
-    this.servers.forEach(function (server) {
+    const p = {};
+    const latency = this.latency || {};
+    if (!this.groupData) this.groupData = {};
+    // запись стилей только при изменении: меньше пересчётов браузера на каждом кадре
+    const tr = function (el, x, y) {
+      const t = 'translate3d(' + x.toFixed(1) + 'px,' + y.toFixed(1) + 'px,0) translate(-50%,-50%)';
+      if (el._tr !== t) {
+        el._tr = t;
+        el.style.transform = t;
+      }
+    };
+    const vis = function (el, value) {
+      if (el._vis !== value) {
+        el._vis = value;
+        el.style.visibility = value;
+      }
+    };
+    const dead = function (server) {
+      const entry = latency[server.id];
+      return !!entry && (entry.ms == null || (Number.isFinite(entry.ms) && entry.ms > 200));
+    };
+    const hideMember = function (server) {
       const button = self.markers.get(server.id);
-      const vector = self.serverVec[server.id];
-      if (!button || !vector) return;
-      self.project(vector, p);
-      if (p.z <= 0.015) {
-        button.style.visibility = 'hidden';
+      if (!button) return;
+      vis(button, 'hidden');
+      if (button._aria !== 1) {
+        button._aria = 1;
         button.setAttribute('aria-hidden', 'true');
         button.tabIndex = -1;
-        return;
       }
-      button.style.visibility = 'visible';
-      button.removeAttribute('aria-hidden');
-      button.tabIndex = 0;
-      button.style.transform = 'translate3d(' + p.x.toFixed(1) + 'px,' + p.y.toFixed(1) + 'px,0) translate(-50%,-50%)';
-      button.style.setProperty('--depth', String(clamp(p.z, 0, 1)));
-      visible.push({ button: button, server: server, x: p.x, y: p.y, z: p.z, city: String(server.city || '') });
-    });
-
-    // маркеры: одна страна — один кружок; несколько серверов страны — кружок со счётчиком и список по нажатию
-    visible.sort(function (a, b) { return String(a.button.dataset.id).localeCompare(String(b.button.dataset.id)); });
-    const alive = visible.filter(function (item) {
-      const entry = self.latency ? self.latency[item.button.dataset.id] : null;
-      const dead = entry && (entry.ms == null || (Number.isFinite(entry.ms) && entry.ms > 200));
-      item.button.classList.toggle('is-offline', !!dead);
-      item.button.classList.toggle('is-hidden-map', !!dead);
-      item.button.classList.remove('is-grouped');
-      if (dead) item.button.style.visibility = 'hidden';
-      return !dead;
-    });
-    const groups = {};
-    const order = [];
-    alive.forEach(function (item) {
-      const key = String(item.server.code || item.server.country || item.server.id);
-      if (!groups[key]) { groups[key] = []; order.push(key); }
-      groups[key].push(item);
-    });
-    if (!this.groupData) this.groupData = {};
-    const shown = {};
-    order.forEach(function (key) {
-      const members = groups[key];
-      if (members.length === 1) {
-        const only = members[0];
-        only.button.style.transform = 'translate3d(' + only.x.toFixed(1) + 'px,' + only.y.toFixed(1) + 'px,0) translate(-50%,-50%)';
-        return;
+    };
+    const showMember = function (server, x, y, z) {
+      const button = self.markers.get(server.id);
+      if (!button) return;
+      vis(button, 'visible');
+      if (button._aria !== 0) {
+        button._aria = 0;
+        button.removeAttribute('aria-hidden');
+        button.tabIndex = 0;
       }
-      let cx = 0;
-      let cy = 0;
-      members.forEach(function (m) { cx += m.x; cy += m.y; });
-      cx /= members.length;
-      cy /= members.length;
-      members.forEach(function (m) {
-        m.grouped = true;
-        m.button.classList.add('is-grouped');
-        m.button.style.visibility = 'hidden';
-        m.button.tabIndex = -1;
+      tr(button, x, y);
+      const depth = String(clamp(z, 0, 1));
+      if (button._depth !== depth) {
+        button._depth = depth;
+        button.style.setProperty('--depth', depth);
+      }
+    };
+    const hideGroup = function (key) {
+      if (self.groupEls && self.groupEls[key]) vis(self.groupEls[key], 'hidden');
+      delete self.groupData[key];
+    };
+    const labels = [];
+    const shownGroups = {};
+    (this.clusters || []).forEach(function (cluster) {
+      const alive = cluster.members.filter(function (server) {
+        const isDead = dead(server);
+        const button = self.markers.get(server.id);
+        if (button) {
+          button.classList.toggle('is-offline', isDead);
+          button.classList.toggle('is-hidden-map', isDead);
+        }
+        return !isDead;
       });
-      const el = self.ensureGroup(key);
-      const first = members[0].server;
+      cluster.members.forEach(function (server) {
+        if (alive.indexOf(server) === -1) hideMember(server);
+      });
+      if (!alive.length) {
+        hideGroup(cluster.key);
+        return;
+      }
+      if (alive.length === 1) {
+        const only = alive[0];
+        self.project(self.serverVec[only.id], p);
+        if (p.z <= 0.015) {
+          hideMember(only);
+          return;
+        }
+        showMember(only, p.x, p.y, p.z);
+        labels.push({ button: self.markers.get(only.id), x: p.x, y: p.y, z: p.z, city: String(only.city || '') });
+        return;
+      }
+      // несколько серверов рядом: один кружок в центре кластера
+      cluster.members.forEach(hideMember);
+      self.project(cluster.vec, p);
+      if (p.z <= 0.015) {
+        hideGroup(cluster.key);
+        return;
+      }
+      const el = self.ensureGroup(cluster.key);
+      const first = alive[0];
+      const sameCountry = alive.every(function (s) { return s.country === first.country; });
       const flagText = first.flag || (first.code ? String(first.code).toUpperCase() : '··');
-      el.querySelector('.srv-flag').textContent = flagText;
-      el.querySelector('.srv-count').textContent = String(members.length);
-      el.setAttribute('aria-label', (first.country || key) + ', серверов: ' + members.length);
-      el.style.visibility = 'visible';
-      el.style.transform = 'translate3d(' + cx.toFixed(1) + 'px,' + cy.toFixed(1) + 'px,0) translate(-50%,-50%)';
-      el.classList.toggle('is-selected', members.some(function (m) { return m.button.dataset.id === self.selectedId; }));
-      self.groupData[key] = {
-        key: key,
-        x: cx,
-        y: cy,
+      const countText = String(alive.length);
+      if (el._count !== countText || el._flag !== flagText) {
+        el._count = countText;
+        el._flag = flagText;
+        el.querySelector('.srv-flag').textContent = flagText;
+        el.querySelector('.srv-count').textContent = countText;
+        el.setAttribute('aria-label', (sameCountry ? (first.country || '') : 'Несколько локаций') + ', серверов: ' + countText);
+      }
+      tr(el, p.x, p.y);
+      vis(el, 'visible');
+      const selected = alive.some(function (m) { return m.id === self.selectedId; });
+      if (el._sel !== selected) {
+        el._sel = selected;
+        el.classList.toggle('is-selected', selected);
+      }
+      self.groupData[cluster.key] = {
+        key: cluster.key,
+        x: p.x,
+        y: p.y,
         flag: flagText,
-        country: first.country || first.code || key,
-        servers: members.map(function (m) { return m.server; })
+        country: sameCountry ? (first.country || first.code || '') : 'Несколько локаций',
+        servers: alive
       };
-      shown[key] = true;
+      shownGroups[cluster.key] = true;
     });
     Object.keys(this.groupEls || {}).forEach(function (key) {
-      if (shown[key]) return;
-      self.groupEls[key].style.visibility = 'hidden';
+      if (shownGroups[key]) return;
+      vis(self.groupEls[key], 'hidden');
       delete self.groupData[key];
     });
-    if (this.openGroup && !shown[this.openGroup]) this.closeGroup();
+    if (this.openGroup && !shownGroups[this.openGroup]) this.closeGroup();
     else this.positionGroup();
-
     // подписи городов: прячем те, что перекрываются с более близкими
-    const labels = alive.filter(function (item) { return !item.grouped; });
     labels.sort(function (a, b) { return b.z - a.z; });
     const placed = [];
+    const many = document.body.dataset.many === 'true';
     labels.forEach(function (item) {
+      if (!item.button) return;
       const width = Math.min(140, 16 + item.city.length * 5.6);
-      const box = {
-        x1: item.x - width / 2,
-        x2: item.x + width / 2,
-        y1: item.y + 14,
-        y2: item.y + 38
-      };
+      const box = { x1: item.x - width / 2, x2: item.x + width / 2, y1: item.y + 14, y2: item.y + 38 };
       const overlap = placed.some(function (other) {
         return !(box.x2 < other.x1 || box.x1 > other.x2 || box.y2 < other.y1 || box.y1 > other.y2);
       });
-      item.button.classList.toggle('is-label-hidden', overlap || document.body.dataset.many === 'true');
+      item.button.classList.toggle('is-label-hidden', overlap || many);
       if (!overlap) placed.push(box);
     });
-
     this.project(this.originVec, p);
     if (p.z <= 0.015) {
-      this.originEl.style.visibility = 'hidden';
+      vis(this.originEl, 'hidden');
     } else {
-      this.originEl.style.visibility = 'visible';
-      this.originEl.style.transform = 'translate3d(' + p.x.toFixed(1) + 'px,' + p.y.toFixed(1) + 'px,0) translate(-50%,-50%)';
+      vis(this.originEl, 'visible');
+      tr(this.originEl, p.x, p.y);
     }
   };
 
-  DotGlobe.prototype.drawGlobe = function () {
+    DotGlobe.prototype.drawGlobe = function () {
     const ctx = this.ctx;
     const count = this.count;
     const xs = this.bufX;
@@ -4842,9 +5088,7 @@ window.GEO_CITIES = [
     const sx = Math.sin(this.rotX);
     const R = this.radius;
     const points = this.points;
-
     ctx.clearRect(0, 0, this.width, this.height);
-
     for (let i = 0, j = 0; i < count; i += 1, j += 3) {
       const x = points[j];
       const y = points[j + 1];
@@ -4859,20 +5103,30 @@ window.GEO_CITIES = [
       const face = smooth(-0.35, 0.45, z2);
       buckets[i] = Math.min(7, Math.floor((0.08 + 0.82 * face) * 8));
     }
-
+    // точки по яркостным корзинам: одна сортировка вместо восьми проходов по всем точкам
+    const counts = new Int32Array(8);
+    for (let i = 0; i < count; i += 1) counts[buckets[i]] += 1;
+    const starts = new Int32Array(9);
+    for (let b = 0; b < 8; b += 1) starts[b + 1] = starts[b] + counts[b];
+    if (!this.bufOrder || this.bufOrder.length !== count) this.bufOrder = new Int32Array(count);
+    const order = this.bufOrder;
+    const fill = starts.slice(0, 8);
+    for (let i = 0; i < count; i += 1) order[fill[buckets[i]]++] = i;
+    const w = this.width;
+    const h = this.height;
     ctx.fillStyle = this.colors.ink;
     for (let b = 0; b < 8; b += 1) {
       ctx.globalAlpha = 0.10 + (b / 7) * 0.78;
-      for (let i = 0; i < count; i += 1) {
-        if (buckets[i] !== b) continue;
+      const end = starts[b + 1];
+      for (let k = starts[b]; k < end; k += 1) {
+        const i = order[k];
         const x = xs[i];
         const y = ys[i];
-        if (x < -4 || x > this.width + 4 || y < -4 || y > this.height + 4) continue;
+        if (x < -4 || x > w + 4 || y < -4 || y > h + 4) continue;
         ctx.fillRect(x - s / 2, y - s / 2, s, s);
       }
     }
     ctx.globalAlpha = 1;
-
     if (this.arcOn && this.arc && this.connected && this.colors.accent) {
       this.drawArcGlow(xs, ys, buckets);
     }
@@ -5027,7 +5281,7 @@ window.GEO_CITIES = [
     ctx.globalAlpha = 1;
   };
 
-  DotGlobe.prototype.loop = function (now) {
+      DotGlobe.prototype.loop = function (now) {
     this.raf = requestAnimationFrame(this.loop);
     const dt = Math.min(48, now - (this.lastT || now - 16));
     this.lastT = now;
@@ -5068,6 +5322,16 @@ window.GEO_CITIES = [
       if (this.layer) this.layer.classList.toggle('is-spinning', spinning);
     }
 
+    // Кадр перерисовываем только если вид изменился. Анимированная дуга (пульс по времени) — всегда.
+    const many = document.body.dataset.many;
+    const view = [this.rotX, this.rotY, this.radius, this.arcProgress, this.width, this.height, this.cx, this.cy,
+      this.dotSize, this.colors, this.connected, this.arcOn, this.selectedId, this.latency, this.servers,
+      this.servers ? this.servers.length : 0, this.openGroup, this.count, this.points, many];
+    const same = !this.dirty && !this.arc && this._view && this._view.length === view.length
+      && view.every(function (v, i) { return v === this._view[i]; }, this);
+    if (same) return;
+    this._view = view;
+    this.dirty = false;
     this.drawGlobe();
     this.drawArc(now);
     this.updateMarkers();
@@ -15700,8 +15964,16 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
     return meta;
   }
 
+    // Строки метаданных (# profile-title: …) отделяем до декодирования base64: иначе тело не читается
+  function subscriptionBody(text) {
+    return String(text || '').split(/\r?\n/).filter(function (line) {
+      // # и ; в base64 не встречаются; // — только если это строка вида «// key: value» или «// текст»
+      return !(/^\s*[#;]/.test(line) || /^\s*\/\/(\s|[a-z-]+\s*[:=])/i.test(line));
+    }).join('\n').trim();
+  }
+
   function parseSubscriptionContent(text) {
-    let content = String(text || '').trim();
+    let content = subscriptionBody(text);
     if (!content) return [];
     if (content.indexOf('://') === -1) {
       try {
@@ -15723,11 +15995,12 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
     return result;
   }
 
-  function buildServer(parsed, sub, explicitName) {
+    function buildServer(parsed, sub, explicitName) {
     const location = detectLocation(parsed.name, explicitName);
+    const custom = customServerName(parsed.link);
     return {
       id: uid('srv'),
-      city: location.city || parsed.name || parsed.host,
+      city: custom || location.city || parsed.name || parsed.host,
       country: location.country,
       code: location.code,
       flag: location.flag,
@@ -15769,14 +16042,26 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
     };
   }
 
-  function sanitizeSub(raw) {
+    function sanitizeSub(raw) {
     if (!raw || typeof raw !== 'object' || typeof raw.id !== 'string') return null;
+    const meta = raw.meta && typeof raw.meta === 'object' ? raw.meta : null;
     return {
       id: raw.id,
       name: cleanText(raw.name, 60) || 'Подписка',
       url: String(raw.url || '').trim(),
       content: String(raw.content || ''),
-      updatedAt: Number(raw.updatedAt) || 0
+      updatedAt: Number(raw.updatedAt) || 0,
+      autoName: raw.autoName === true,
+      desc: cleanText(raw.desc, 160),
+      localDesc: raw.localDesc == null ? null : cleanText(raw.localDesc, 240),
+      hideDesc: raw.hideDesc === true,
+      hideTraffic: raw.hideTraffic === true,
+      meta: meta ? {
+        title: cleanText(meta.title, 60),
+        description: cleanText(meta.description, 160),
+        traffic: cleanText(meta.traffic, 120),
+        updateEvery: cleanText(meta.updateEvery, 24)
+      } : null
     };
   }
 
@@ -16302,39 +16587,53 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
     return Math.max(0, slider.el.clientWidth - slider.knob.offsetWidth - 12);
   }
 
+    // движение ползунка: один кадр на изменение, только transform (без пересчёта раскладки)
+    // Позиция ползунка: transform и --knob-x (подпись) обновляются не чаще одного раза за кадр
   function sliderPaint(offset, animate) {
     if (!slider.knob) return;
     slider.offset = offset;
-    if (!animate) slider.knob.style.transition = 'none';
-    slider.knob.style.transform = 'translateX(' + offset + 'px)';
-    if (slider.el) slider.el.style.setProperty('--knob-x', offset + 'px');
-    if (!animate) {
-      void slider.knob.offsetWidth;
-      slider.knob.style.transition = '';
+    const commit = function (value) {
+      slider.knob.style.transform = 'translateX(' + value + 'px)';
+      if (slider.el) slider.el.style.setProperty('--knob-x', value + 'px');
+    };
+    if (animate) {
+      if (slider.raf) {
+        cancelAnimationFrame(slider.raf);
+        slider.raf = 0;
+      }
+      commit(offset);
+      return;
     }
+    slider.pending = offset;
+    if (slider.raf) return;
+    slider.raf = requestAnimationFrame(function () {
+      slider.raf = 0;
+      commit(slider.pending);
+    });
   }
 
-  function sliderState(state) {
+      function sliderState(next) {
     if (!slider.el) return;
-    slider.el.dataset.state = state;
-    if (state === 'connected') {
+    slider.el.dataset.state = next;
+    if (next === 'connected') {
       sliderPaint(0, true);
       if (slider.label) slider.label.textContent = 'Отключить';
-    } else if (state === 'connecting') {
+    } else if (next === 'connecting') {
       slider.max = sliderMax();
       sliderPaint(slider.max, true);
       if (slider.label) slider.label.textContent = 'Подключение…';
-    } else if (state === 'error') {
+    } else if (next === 'error') {
       slider.max = sliderMax();
       sliderPaint(0, true);
-      if (slider.label) slider.label.textContent = state.vpn.error || 'Повторите попытку';
-    } else if (state === 'empty') {
+      const reason = state.vpn && state.vpn.error;
+      if (slider.label) slider.label.textContent = reason || 'Повторите попытку';
+    } else if (next === 'empty') {
       sliderPaint(0, true);
       if (slider.label) slider.label.textContent = 'Добавьте сервер';
     } else {
       slider.max = sliderMax();
       sliderPaint(0, true);
-      if (slider.label) slider.label.textContent = 'Потяните вправо';
+      if (slider.label) slider.label.textContent = '';
     }
   }
 
@@ -16353,13 +16652,14 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
     startConnection();
   }
 
-  function bindSlider() {
+    function bindSlider() {
     const el = ui.slider;
     const knob = ui.sliderKnob;
     if (!el || !knob) return;
     slider.el = el;
     slider.knob = knob;
     slider.label = ui.sliderLabel;
+    slider.armed = false;
 
     knob.addEventListener('pointerdown', function (event) {
       const vpn = vpnStateName();
@@ -16369,6 +16669,7 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
       slider.startX = event.clientX;
       slider.startOffset = slider.offset;
       slider.max = sliderMax();
+      slider.armed = false;
       el.classList.add('is-dragging');
       if (knob.setPointerCapture) knob.setPointerCapture(event.pointerId);
       event.preventDefault();
@@ -16380,8 +16681,11 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
       const max = slider.max || sliderMax();
       const eased = Math.max(0, Math.min(max * 1.06, raw));
       sliderPaint(Math.min(max, eased), false);
-      if (eased >= max * 0.62) el.classList.add('is-armed');
-      else el.classList.remove('is-armed');
+      const armed = eased >= max * 0.62;
+      if (armed !== slider.armed) {
+        slider.armed = armed;
+        el.classList.toggle('is-armed', armed);
+      }
     });
 
     function release() {
@@ -16390,6 +16694,7 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
       el.classList.remove('is-dragging');
       const max = slider.max || sliderMax();
       el.classList.remove('is-armed');
+      slider.armed = false;
       slider.justDragged = true;
       window.setTimeout(function () { slider.justDragged = false; }, 420);
       if (slider.offset >= max * 0.62) {
@@ -17187,14 +17492,14 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
     }
     if (ui.pingAll) {
       ui.pingAll.disabled = true;
-      ui.pingAll.textContent = 'Тест…';
+      ui.pingAll.classList.add('is-busy');
     }
     try {
       native.ping(JSON.stringify(list));
     } catch (error) {
       if (ui.pingAll) {
         ui.pingAll.disabled = false;
-        ui.pingAll.textContent = 'Задержка';
+        resetPingButtons();
       }
     }
   }
@@ -17212,7 +17517,7 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
     globe.setLatency(state.latency);
     if (ui.pingAll) {
       ui.pingAll.disabled = false;
-      ui.pingAll.textContent = 'Задержка';
+      resetPingButtons();
     }
     patchLatency();
     updateHome();
@@ -17433,37 +17738,28 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
     return best;
   }
 
-  function buildServerRow(server, removable) {
+    function buildServerRow(server, removable) {
     const item = document.createElement('div');
     item.className = 'server-item';
-
     const row = document.createElement('button');
     row.type = 'button';
     row.className = 'server-row' + (server.id === state.selectedId ? ' is-selected' : '');
     row.dataset.id = server.id;
     if (server.id === state.selectedId) row.setAttribute('aria-current', 'true');
-
     const aria = ['Выбрать сервер: ' + server.city];
     if (server.country) aria.push(server.country);
     if (server.protocol) aria.push(server.protocol);
     row.setAttribute('aria-label', aria.join(', '));
-
     const flag = document.createElement('span');
     flag.className = 'server-flag' + (server.flag ? '' : ' is-unknown');
     flag.textContent = server.flag || '—';
     flag.setAttribute('aria-hidden', 'true');
-
     const copy = document.createElement('span');
     copy.className = 'server-copy';
     const city = document.createElement('span');
     city.className = 'server-city';
     city.textContent = server.city;
-    const sub = document.createElement('span');
-    sub.className = 'server-sub';
-    sub.textContent = [server.country || 'Локация не определена', sourceText(server)].filter(Boolean).join(' · ');
     copy.appendChild(city);
-    copy.appendChild(sub);
-
     const side = document.createElement('span');
     side.className = 'server-side';
     const ping = latencyText(server);
@@ -17478,20 +17774,18 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
     proto.textContent = server.protocol || '—';
     side.appendChild(pingEl);
     side.appendChild(proto);
-
     row.appendChild(flag);
     row.appendChild(copy);
     row.appendChild(side);
-
-    bindLongPress(row, function () { openServerSettings(server.id); }, function () {
+    // зажатие — выпадающее меню сервера; нажатие — выбор
+    bindLongPress(row, function () { openServerMenu(server.id, row); }, function () {
       selectServer(server.id, true);
     });
     row.addEventListener('contextmenu', function (event) {
       event.preventDefault();
-      openServerSettings(server.id);
+      openServerMenu(server.id, row);
     });
     item.appendChild(row);
-
     if (removable) {
       const remove = document.createElement('button');
       remove.type = 'button';
@@ -17504,7 +17798,6 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
       });
       item.appendChild(remove);
     }
-
     return item;
   }
 
@@ -17551,73 +17844,79 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
     });
   }
 
-  function buildGroupCard(options) {
+    function buildGroupCard(options) {
     const key = options.key;
     const open = isGroupOpen(key);
     const servers = options.servers;
-
+    const sub = options.sub;
     const card = document.createElement('section');
     card.className = 'group-card' + (open ? ' is-open' : '');
     card.dataset.key = key;
-
     const head = document.createElement('div');
     head.className = 'group-head';
-
     const toggle = document.createElement('button');
     toggle.type = 'button';
     toggle.className = 'group-toggle';
     toggle.setAttribute('aria-expanded', String(open));
-
     const flag = document.createElement('span');
     flag.className = 'group-flag is-icon';
-    flag.innerHTML = options.sub ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.2 13.8a3.6 3.6 0 0 0 5.1 0l2.4-2.4a3.6 3.6 0 0 0-5.1-5.1l-1 1"/><path d="M13.8 10.2a3.6 3.6 0 0 0-5.1 0l-2.4 2.4a3.6 3.6 0 0 0 5.1 5.1l1-1"/></svg>' : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 19l.9-3.3 8.4-8.4a1.6 1.6 0 0 1 2.3 0l1.1 1.1a1.6 1.6 0 0 1 0 2.3l-8.4 8.4z"/><path d="M13.2 8.4l2.4 2.4"/></svg>';
+    flag.innerHTML = sub ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.2 13.8a3.6 3.6 0 0 0 5.1 0"/><path d="M13.8 10.2a3.6 3.6 0 0 0-5.1 0"/><path d="M7.4 7.4a7.2 7.2 0 0 0 0 9.2"/><path d="M16.6 16.6a7.2 7.2 0 0 0 0-9.2"/></svg>' : '';
     flag.setAttribute('aria-hidden', 'true');
-    if (options.sub) flag.hidden = true;
-
+    if (sub) flag.hidden = true;
     const copy = document.createElement('span');
     copy.className = 'group-copy';
     const name = document.createElement('span');
     name.className = 'group-name';
     name.textContent = options.name;
-
     copy.appendChild(name);
-    if (options.sub && options.sub.desc) {
-      const desc = document.createElement('span');
-      desc.className = 'group-desc';
-      desc.textContent = options.sub.desc;
-      copy.appendChild(desc);
+    const desc = sub ? (sub.localDesc != null ? sub.localDesc : (sub.desc || '')) : '';
+    if (sub && desc && !sub.hideDesc) {
+      const line = document.createElement('span');
+      line.className = 'group-desc';
+      line.textContent = desc;
+      copy.appendChild(line);
     }
-
     const count = document.createElement('span');
     count.className = 'group-count';
     count.textContent = String(servers.length);
-
     const chevron = document.createElement('span');
     chevron.className = 'group-chevron';
     chevron.setAttribute('aria-hidden', 'true');
-
     toggle.appendChild(flag);
     toggle.appendChild(copy);
     toggle.appendChild(count);
     toggle.appendChild(chevron);
-    toggle.addEventListener('click', function () { toggleGroup(key); });
-
+    // нажатие — раскрыть, зажатие — настройки подписки
+    if (sub) {
+      bindLongPress(toggle, function () { openSubEdit(sub.id); }, function () { toggleGroup(key); });
+    } else {
+      toggle.addEventListener('click', function () { toggleGroup(key); });
+    }
     const tools = document.createElement('div');
     tools.className = 'group-tools';
-
-    if (options.sub) {
+    if (sub) {
+      const ping = document.createElement('button');
+      ping.type = 'button';
+      ping.className = 'group-action is-ping';
+      ping.innerHTML = PING_SVG;
+      ping.title = 'Проверить задержку';
+      ping.setAttribute('aria-label', 'Проверить задержку подписки ' + options.name);
+      ping.addEventListener('click', function (event) {
+        event.stopPropagation();
+        pingServers(state.servers.filter(function (server) { return server.subId === sub.id; }), ping);
+      });
+      tools.appendChild(ping);
       const refresh = document.createElement('button');
       refresh.type = 'button';
       refresh.className = 'group-action';
-      refresh.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12a7 7 0 1 1-2.1-5"/><path d="M19.4 4.6v4.2h-4.2"/></svg>';
+      refresh.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12a7 7 0 1 1-2.1-5"/><path d="M19.4 4.6V9h-4.4"/></svg>';
       refresh.title = 'Обновить подписку';
       refresh.setAttribute('aria-label', 'Обновить подписку ' + options.name);
       refresh.addEventListener('click', function (event) {
         event.stopPropagation();
-        refreshSub(options.sub.id, refresh);
+        refreshSub(sub.id, refresh);
       });
       tools.appendChild(refresh);
-
       const remove = document.createElement('button');
       remove.type = 'button';
       remove.className = 'group-action is-danger';
@@ -17626,17 +17925,33 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
       remove.setAttribute('aria-label', 'Удалить подписку ' + options.name);
       remove.addEventListener('click', function (event) {
         event.stopPropagation();
-        deleteSub(options.sub.id);
+        deleteSub(sub.id);
       });
       tools.appendChild(remove);
     }
-
     head.appendChild(toggle);
     head.appendChild(tools);
     card.appendChild(head);
-
     const body = document.createElement('div');
     body.className = 'group-body';
+    const traffic = sub && !sub.hideTraffic ? trafficText(sub.meta && sub.meta.traffic) : '';
+    const showDesc = !!(sub && desc && !sub.hideDesc);
+    if (showDesc || traffic) {
+      const info = document.createElement('div');
+      info.className = 'sub-info';
+      if (showDesc) {
+        const full = document.createElement('p');
+        full.textContent = desc;
+        info.appendChild(full);
+      }
+      if (traffic) {
+        const line = document.createElement('p');
+        line.className = 'sub-traffic';
+        line.textContent = traffic;
+        info.appendChild(line);
+      }
+      body.appendChild(info);
+    }
     if (!servers.length) {
       const empty = document.createElement('p');
       empty.className = 'sub-note';
@@ -17995,6 +18310,578 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
     } finally {
       clearTimeout(timer);
     }
+  }
+
+  // любой публичный метод карты помечает кадр грязным; служебные методы отрисовки — нет
+  (function markDirty() {
+    const skip = { loop: 1, drawGlobe: 1, drawArc: 1, drawArcGlow: 1, updateMarkers: 1, rebuildClusters: 1,
+      project: 1, ensureGroup: 1, positionGroup: 1, renderGroup: 1 };
+    Object.keys(DotGlobe.prototype).forEach(function (name) {
+      const original = DotGlobe.prototype[name];
+      if (skip[name] || typeof original !== 'function') return;
+      DotGlobe.prototype[name] = function () {
+        this.dirty = true;
+        return original.apply(this, arguments);
+      };
+    });
+  })();
+
+  // ── v6: иконки, контекстное меню, шторки редактирования ───────────────
+  const PING_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M13.2 3.6 5.8 13.3h5.6l-1 7.1 7.4-9.7h-5.6z"/></svg>';
+  const ICON_CONFIG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8.5 7 4 12l4.5 5M15.5 7 20 12l-4.5 5"/></svg>';
+  const ICON_SHARE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V4M7.5 8.5 12 4l4.5 4.5"/><path d="M6 12.5v5.5h12v-5.5"/></svg>';
+  const ICON_TUNE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg>';
+  const ICON_EDIT = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/></svg>';
+  const AP_PROBE_URL = 'https://www.gstatic.com/generate_204';
+  const pendingProbes = {};
+  const pendingPingButtons = [];
+  let ctxMenuEl = null;
+  let infoOpen = false;
+
+  function resetPingButtons() {
+    if (ui.pingAll) { ui.pingAll.disabled = false; ui.pingAll.classList.remove('is-busy'); }
+    pendingPingButtons.splice(0).forEach(function (button) {
+      button.disabled = false;
+      button.classList.remove('is-busy');
+    });
+  }
+
+  // пинг списка серверов; кнопка подписки показывает занятость
+  function pingServers(list, button) {
+    if (!native || typeof native.ping !== 'function') {
+      showToast('Задержка измеряется в приложении');
+      return;
+    }
+    const rows = list.filter(function (server) { return server.host && server.port; }).map(function (server) {
+      return { id: server.id, host: server.host, port: server.port, timeout: settings.pingTimeout };
+    });
+    if (!rows.length) return;
+    if (button) {
+      button.disabled = true;
+      button.classList.add('is-busy');
+      pendingPingButtons.push(button);
+    }
+    try {
+      native.ping(JSON.stringify(rows));
+    } catch (error) {
+      resetPingButtons();
+    }
+  }
+
+  function bytesText(value) {
+    const units = ['Б', 'КБ', 'МБ', 'ГБ', 'ТБ'];
+    let v = Number(value) || 0;
+    let i = 0;
+    while (v >= 1024 && i < units.length - 1) { v /= 1024; i += 1; }
+    return (i === 0 ? String(Math.round(v)) : v.toFixed(v < 10 ? 2 : 1)) + ' ' + units[i];
+  }
+
+  function dateText(seconds) {
+    const d = new Date(Number(seconds) * 1000);
+    if (isNaN(d.getTime())) return '';
+    return String(d.getDate()).padStart(2, '0') + '.' + String(d.getMonth() + 1).padStart(2, '0') + '.' + d.getFullYear();
+  }
+
+  // subscription-userinfo: upload=…; download=…; total=…; expire=…
+  function trafficText(raw) {
+    const text = String(raw || '');
+    if (!text) return '';
+    const pick = function (key) {
+      const match = text.match(new RegExp('(?:^|[;\\s])' + key + '\\s*=\\s*(\\d+)', 'i'));
+      return match ? Number(match[1]) : null;
+    };
+    const up = pick('upload');
+    const down = pick('download');
+    const total = pick('total');
+    const expire = pick('expire');
+    const used = (up || 0) + (down || 0);
+    const parts = [];
+    if (up != null || down != null) parts.push('использовано ' + bytesText(used));
+    if (total) parts.push('из ' + bytesText(total));
+    if (total) parts.push('осталось ' + bytesText(Math.max(0, total - used)));
+    if (expire) parts.push('до ' + dateText(expire));
+    return parts.length ? 'Трафик: ' + parts.join(' · ') : '';
+  }
+
+  function customServerName(link) {
+    const map = store.read('vpn.serverNames', {});
+    return (map && map[link]) || '';
+  }
+
+  function openCtxMenu(anchor, items) {
+    closeCtxMenu();
+    const menu = document.createElement('div');
+    menu.className = 'ctx-menu';
+    menu.setAttribute('role', 'menu');
+    items.forEach(function (item) {
+      if (item === '-') {
+        const sep = document.createElement('div');
+        sep.className = 'ctx-sep';
+        menu.appendChild(sep);
+        return;
+      }
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'ctx-item' + (item.danger ? ' is-danger' : '');
+      button.setAttribute('role', 'menuitem');
+      if (item.icon) button.insertAdjacentHTML('beforeend', item.icon);
+      const label = document.createElement('span');
+      label.textContent = item.label;
+      button.appendChild(label);
+      button.addEventListener('click', function (event) {
+        event.stopPropagation();
+        closeCtxMenu();
+        item.run();
+      });
+      menu.appendChild(button);
+    });
+    document.body.appendChild(menu);
+    const rect = anchor.getBoundingClientRect();
+    const w = menu.offsetWidth;
+    const h = menu.offsetHeight;
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const left = Math.min(Math.max(8, rect.left + rect.width / 2 - w / 2), vw - w - 8);
+    let top = rect.bottom + 8;
+    let below = true;
+    if (top + h > vh - 96) {
+      top = Math.max(8, rect.top - h - 8);
+      below = false;
+    }
+    menu.style.left = left + 'px';
+    menu.style.top = top + 'px';
+    menu.style.setProperty('--origin-x', (rect.left + rect.width / 2 - left) + 'px');
+    menu.style.setProperty('--origin-y', below ? '0' : '100%');
+    ctxMenuEl = menu;
+    window.setTimeout(function () {
+      document.addEventListener('pointerdown', onCtxOutside, true);
+      window.addEventListener('scroll', closeCtxMenu, { capture: true, passive: true, once: true });
+    }, 0);
+  }
+
+  function onCtxOutside(event) {
+    if (ctxMenuEl && !ctxMenuEl.contains(event.target)) closeCtxMenu();
+  }
+
+  function closeCtxMenu() {
+    if (!ctxMenuEl) return;
+    const el = ctxMenuEl;
+    ctxMenuEl = null;
+    document.removeEventListener('pointerdown', onCtxOutside, true);
+    el.classList.add('is-closing');
+    window.setTimeout(function () { el.remove(); }, 150);
+  }
+
+  function openInfoSheet(opts) {
+    const sheet = document.getElementById('info-sheet');
+    const body = document.getElementById('info-body');
+    const backdrop = document.getElementById('sheet-backdrop');
+    if (!sheet || !body) return;
+    closeCtxMenu();
+    document.getElementById('info-eyebrow').textContent = opts.eyebrow || '';
+    document.getElementById('info-title').textContent = opts.title || '';
+    body.textContent = '';
+    opts.build(body);
+    sheet.hidden = false;
+    if (backdrop) backdrop.hidden = false;
+    document.body.classList.add('sheet-open');
+    infoOpen = true;
+  }
+
+  function closeInfoSheet() {
+    if (!infoOpen) return;
+    infoOpen = false;
+    const sheet = document.getElementById('info-sheet');
+    if (sheet) sheet.hidden = true;
+    const server = document.getElementById('server-sheet');
+    const backdrop = document.getElementById('sheet-backdrop');
+    if (backdrop && (!server || server.hidden)) backdrop.hidden = true;
+    if (!server || server.hidden) document.body.classList.remove('sheet-open');
+  }
+
+  function sheetField(label, value, placeholder, multiline) {
+    const wrap = document.createElement('label');
+    wrap.className = 'sheet-field';
+    const span = document.createElement('span');
+    span.textContent = label;
+    const input = document.createElement(multiline ? 'textarea' : 'input');
+    if (!multiline) input.type = 'text';
+    input.value = value || '';
+    input.placeholder = placeholder || '';
+    input.autocomplete = 'off';
+    input.spellcheck = false;
+    if (multiline) input.rows = 3;
+    wrap.appendChild(span);
+    wrap.appendChild(input);
+    return { wrap: wrap, input: input };
+  }
+
+  function sheetSwitchRow(label, note, on, onChange) {
+    const row = document.createElement('div');
+    row.className = 'sheet-row';
+    const copy = document.createElement('div');
+    copy.className = 'sheet-row-copy';
+    const title = document.createElement('p');
+    title.className = 'row-label';
+    title.textContent = label;
+    copy.appendChild(title);
+    if (note) {
+      const text = document.createElement('p');
+      text.className = 'row-note';
+      text.textContent = note;
+      copy.appendChild(text);
+    }
+    const sw = document.createElement('button');
+    sw.type = 'button';
+    sw.className = 'switch';
+    sw.setAttribute('role', 'switch');
+    sw.setAttribute('aria-label', label);
+    sw.setAttribute('aria-checked', String(!!on));
+    sw.appendChild(document.createElement('span'));
+    sw.addEventListener('click', function () {
+      const next = sw.getAttribute('aria-checked') !== 'true';
+      sw.setAttribute('aria-checked', String(next));
+      onChange(next);
+    });
+    row.appendChild(copy);
+    row.appendChild(sw);
+    return row;
+  }
+
+  function sheetButtons(saveLabel, onSave) {
+    const bar = document.createElement('div');
+    bar.className = 'sheet-actions';
+    const save = document.createElement('button');
+    save.type = 'button';
+    save.className = 'primary';
+    save.textContent = saveLabel || 'Сохранить';
+    save.addEventListener('click', onSave);
+    bar.appendChild(save);
+    return bar;
+  }
+
+  function openServerRename(id) {
+    const server = findServer(id);
+    if (!server) return;
+    openInfoSheet({
+      eyebrow: 'Локально',
+      title: 'Переименовать',
+      build: function (body) {
+        const field = sheetField('Название', server.city, 'Город или подпись');
+        body.appendChild(field.wrap);
+        body.appendChild(sheetButtons('Сохранить', function () {
+          const name = cleanText(field.input.value, 80);
+          if (!name) { field.input.focus(); return; }
+          const map = store.read('vpn.serverNames', {});
+          map[server.link] = name;
+          store.write('vpn.serverNames', map);
+          state.servers.forEach(function (item) {
+            if (item.link !== server.link) return;
+            item.city = name;
+            const button = globe.markers.get(item.id);
+            if (button) {
+              const label = button.querySelector('.srv-label');
+              if (label) label.textContent = name;
+            }
+          });
+          persist();
+          renderServers(true);
+          closeInfoSheet();
+          showToast('Сервер переименован');
+        }));
+        field.input.focus();
+      }
+    });
+  }
+
+  function openServerConfig(id) {
+    const server = findServer(id);
+    if (!server) return;
+    const built = buildXrayConfig(server);
+    const text = built.ok ? JSON.stringify(built.config, null, 2) : (built.reason || server.link);
+    openInfoSheet({
+      eyebrow: server.protocol || 'Конфиг',
+      title: 'Конфиг сервера',
+      build: function (body) {
+        const pre = document.createElement('pre');
+        pre.className = 'cfg-pre';
+        pre.textContent = text;
+        body.appendChild(pre);
+        body.appendChild(sheetButtons('Скопировать', function () {
+          copyText(text);
+          showToast('Конфиг скопирован');
+        }));
+      }
+    });
+  }
+
+  function shareServer(id) {
+    const server = findServer(id);
+    if (!server) return;
+    if (native && typeof native.share === 'function') {
+      try { native.share(server.link); return; } catch (error) { /* ниже */ }
+    }
+    copyText(server.link);
+    showToast('Ссылка скопирована');
+  }
+
+  function openServerMenu(id, anchor) {
+    const server = findServer(id);
+    if (!server || !anchor) return;
+    openCtxMenu(anchor, [
+      { label: 'Конфиг', icon: ICON_CONFIG, run: function () { openServerConfig(id); } },
+      { label: 'Поделиться', icon: ICON_SHARE, run: function () { shareServer(id); } },
+      { label: 'Настроить', icon: ICON_TUNE, run: function () { openServerSettings(id); } },
+      '-',
+      { label: 'Переименовать', icon: ICON_EDIT, run: function () { openServerRename(id); } }
+    ]);
+  }
+
+  function openSubEdit(subId) {
+    const sub = findSub(subId);
+    if (!sub) return;
+    const original = sub.localDesc != null ? sub.localDesc : (sub.desc || '');
+    const draft = { hideDesc: sub.hideDesc === true, hideTraffic: sub.hideTraffic === true };
+    openInfoSheet({
+      eyebrow: 'Подписка',
+      title: 'Настроить подписку',
+      build: function (body) {
+        const name = sheetField('Название', sub.name, 'Например, «Основная»');
+        const desc = sheetField('Описание (локально)', original, 'Видно только в приложении', true);
+        body.appendChild(name.wrap);
+        body.appendChild(desc.wrap);
+        body.appendChild(sheetSwitchRow('Не показывать описание', 'Скрыть описание под названием.', draft.hideDesc, function (on) { draft.hideDesc = on; }));
+        body.appendChild(sheetSwitchRow('Не показывать трафик', 'Скрыть строку трафика из подписки.', draft.hideTraffic, function (on) { draft.hideTraffic = on; }));
+        body.appendChild(sheetButtons('Сохранить', function () {
+          const nextName = cleanText(name.input.value, 60);
+          if (nextName && nextName !== sub.name) {
+            sub.name = nextName;
+            sub.autoName = false;
+          }
+          const nextDesc = cleanText(desc.input.value, 240);
+          sub.localDesc = nextDesc === cleanText(sub.desc || '', 240) ? null : nextDesc;
+          sub.hideDesc = draft.hideDesc;
+          sub.hideTraffic = draft.hideTraffic;
+          persist();
+          renderServers(true);
+          closeInfoSheet();
+          showToast('Подписка сохранена');
+        }));
+      }
+    });
+  }
+
+  function bindInfoSheet() {
+    const close = document.getElementById('info-close');
+    if (close) close.addEventListener('click', closeInfoSheet);
+    const backdrop = document.getElementById('sheet-backdrop');
+    if (backdrop) backdrop.addEventListener('click', function () { if (infoOpen) closeInfoSheet(); });
+  }
+
+  // ── v6: свайп уведомлений (тостов) ─────────────────────────────────────
+  function bindToastSwipe() {
+    const el = ui.toast;
+    if (!el || el.dataset.swipe === '1') return;
+    el.dataset.swipe = '1';
+    let drag = false;
+    let captured = false;
+    let sx = 0;
+    let dx = 0;
+    let id = -1;
+    el.addEventListener('pointerdown', function (event) {
+      if (event.button) return;
+      drag = true;
+      captured = false;
+      id = event.pointerId;
+      sx = event.clientX;
+      dx = 0;
+    });
+    el.addEventListener('pointermove', function (event) {
+      if (!drag) return;
+      dx = event.clientX - sx;
+      if (!captured && Math.abs(dx) > 6) {
+        captured = true;
+        el.classList.add('is-dragging');
+        if (el.setPointerCapture) el.setPointerCapture(id);
+      }
+      if (captured) el.style.translate = dx + 'px 0px';
+    });
+    const end = function () {
+      if (!drag) return;
+      drag = false;
+      el.classList.remove('is-dragging');
+      if (!captured) return;
+      if (Math.abs(dx) > 72) {
+        el.style.translate = (dx < 0 ? -360 : 360) + 'px 0px';
+        el.classList.remove('is-visible');
+        clearTimeout(toastTimer);
+        window.setTimeout(function () { el.style.translate = ''; }, 260);
+      } else {
+        el.style.translate = '';
+      }
+      dx = 0;
+    };
+    el.addEventListener('pointerup', end);
+    el.addEventListener('pointercancel', end);
+  }
+
+  // ── v6: автопилот ─────────────────────────────────────────────────────
+  const AP = { busy: false, mode: 'unknown' };
+
+  function apOn() {
+    return store.read('vpn.autopilot', false) === true;
+  }
+
+  function syncAutopilotUI() {
+    const button = document.getElementById('autopilot');
+    if (button) button.setAttribute('aria-pressed', String(apOn()));
+  }
+
+  function probeServerNative(server, timeoutMs) {
+    return new Promise(function (resolve) {
+      const built = buildXrayConfig(server);
+      if (!native || typeof native.probe !== 'function' || !built.ok) {
+        resolve(-1);
+        return;
+      }
+      const key = 'p' + Math.random().toString(36).slice(2, 9);
+      const timer = window.setTimeout(function () {
+        delete pendingProbes[key];
+        resolve(-1);
+      }, timeoutMs + 3000);
+      pendingProbes[key] = function (ms) {
+        window.clearTimeout(timer);
+        resolve(ms);
+      };
+      try {
+        native.probe(key, JSON.stringify(built.config), AP_PROBE_URL, timeoutMs);
+      } catch (error) {
+        window.clearTimeout(timer);
+        delete pendingProbes[key];
+        resolve(-1);
+      }
+    });
+  }
+
+  window.__onProbe = function (key, ms) {
+    const done = pendingProbes[key];
+    if (!done) return;
+    delete pendingProbes[key];
+    const value = Number(ms);
+    done(Number.isFinite(value) && value > 0 ? value : -1);
+  };
+
+  // белые списки: российские адреса открываются, зарубежные — нет
+  async function apDetectWhitelist() {
+    if (!native || typeof native.fetchText !== 'function') return 'unknown';
+    // тайм-аут: если нативный слой не ответил, автопилот не должен зависнуть
+    const probe = function (url) {
+      return Promise.race([
+        nativeFetch(url).then(function () { return true; }, function () { return false; }),
+        new Promise(function (resolve) { window.setTimeout(function () { resolve(false); }, 6000); })
+      ]);
+    };
+    const domestic = await Promise.all(['https://ya.ru/', 'https://vk.com/'].map(probe));
+    const foreign = await Promise.all([AP_PROBE_URL, 'https://cp.cloudflare.com/generate_204'].map(probe));
+    if (foreign.some(Boolean)) return 'open';
+    return domestic.some(Boolean) ? 'whitelist' : 'offline';
+  }
+
+  function apCandidates(currentId) {
+    const list = state.servers.filter(function (server) { return server.host && server.port; });
+    list.sort(function (a, b) {
+      if (a.id === currentId) return -1;
+      if (b.id === currentId) return 1;
+      const la = state.latency[a.id] && Number.isFinite(state.latency[a.id].ms) ? state.latency[a.id].ms : 1e9;
+      const lb = state.latency[b.id] && Number.isFinite(state.latency[b.id].ms) ? state.latency[b.id].ms : 1e9;
+      return la - lb;
+    });
+    return list.slice(0, 12);
+  }
+
+  // передаём кандидатов в нативный слой: фоновая проверка и переключение без открытого приложения
+  function apSyncNative(list) {
+    if (!native || typeof native.setAutopilot !== 'function') return;
+    const payload = {
+      enabled: apOn(),
+      intervalSec: 60,
+      probeUrl: AP_PROBE_URL,
+      timeoutMs: 4000,
+      servers: []
+    };
+    if (payload.enabled) {
+      list.forEach(function (server) {
+        const built = buildXrayConfig(server);
+        if (built.ok) payload.servers.push({ id: server.id, name: server.city, config: built.config });
+      });
+    }
+    try { native.setAutopilot(JSON.stringify(payload)); } catch (error) { /* мост недоступен */ }
+  }
+
+  async function apRun(reason) {
+    if (AP.busy || !apOn()) return;
+    if (!native || typeof native.probe !== 'function') {
+      if (reason === 'enable') showToast('Автопилот проверяет серверы в приложении на Android');
+      return;
+    }
+    AP.busy = true;
+    try {
+      const current = selectedServer();
+      if (reason === 'tick' && current) {
+        const ok = await probeServerNative(current, 4000);
+        if (ok > 0) return;
+      }
+      if (vpnStateName() !== 'connected') AP.mode = await apDetectWhitelist();
+      const list = apCandidates(current ? current.id : '');
+      let chosen = null;
+      for (let i = 0; i < list.length; i += 1) {
+        const ms = await probeServerNative(list[i], 4000);
+        if (ms > 0) {
+          chosen = { server: list[i], ms: ms };
+          break;
+        }
+      }
+      if (!chosen) {
+        showToast('Рабочих серверов сейчас не найдено');
+        return;
+      }
+      state.latency[chosen.server.id] = { ms: chosen.ms };
+      state.latencyAt = Date.now();
+      globe.setLatency(state.latency);
+      const prefix = AP.mode === 'whitelist' ? 'Белые списки: да · ' : '';
+      if (!current || chosen.server.id !== current.id) {
+        selectServer(chosen.server.id, false);
+        showToast(prefix + 'Автопилот: ' + chosen.server.city + ' · ' + chosen.ms + ' мс');
+      } else if (reason === 'enable') {
+        showToast(prefix + 'Автопилот: текущий сервер работает');
+      }
+      apSyncNative(list);
+    } finally {
+      AP.busy = false;
+    }
+  }
+
+  function bindAutopilotUI() {
+    const button = document.getElementById('autopilot');
+    if (!button) return;
+    button.addEventListener('click', function () {
+      const on = !apOn();
+      store.write('vpn.autopilot', on);
+      syncAutopilotUI();
+      haptic();
+      if (on) {
+        showToast('Автопилот включён');
+        apRun('enable');
+      } else {
+        apSyncNative([]);
+        showToast('Автопилот выключен');
+      }
+    });
+    window.setInterval(function () {
+      if (apOn() && document.visibilityState !== 'hidden') apRun('tick');
+    }, 90000);
+    syncAutopilotUI();
+    if (apOn()) apSyncNative(apCandidates(selectedServer() ? selectedServer().id : ''));
   }
 
   function showView(name) {
@@ -18462,7 +19349,7 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
     }
   }
 
-  function showToast(text, options) {
+    function showToast(text, options) {
     const opts = options || {};
     clearTimeout(toastTimer);
     ui.toastText.textContent = text;
@@ -18474,6 +19361,7 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
       ui.toastAction.hidden = true;
       toastHandler = null;
     }
+    ui.toast.style.translate = '';
     ui.toast.classList.add('is-visible');
     scheduleToastHide(opts.duration || 4500);
   }
@@ -18976,6 +19864,15 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
     systemDarkFromApp = !!dark;
     if (settings.themeMode === 'auto') applyTheme('auto');
   };
+  bindInfoSheet();
+  bindToastSwipe();
+  bindAutopilotUI();
+  if (ui.pingAll) ui.pingAll.innerHTML = PING_SVG;
+  // щипок двумя пальцами не масштабирует страницу; глобус обрабатывает жесты сам
+  document.addEventListener('touchmove', function (event) {
+    if (event.touches && event.touches.length > 1 && !(event.target.closest && event.target.closest('#globe'))) event.preventDefault();
+  }, { passive: false });
+  document.addEventListener('gesturestart', function (event) { event.preventDefault(); }, { passive: false });
   buildSwatches();
   applyTheme(settings.themeMode);
   if (window.matchMedia) {
