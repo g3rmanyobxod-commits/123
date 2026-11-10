@@ -7,6 +7,7 @@ import android.app.NotificationManager;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.net.VpnService;
+import org.json.JSONArray;
 import android.os.Build;
 import android.os.ParcelFileDescriptor;
 import go.Seq;
@@ -83,6 +84,14 @@ public class GlobeVpnService extends VpnService {
         }
         getSharedPreferences("globe-vpn", 0).edit().putString("last_config", stringExtra).putString("last_name", stringExtra2 == null ? "" : stringExtra2).apply();
         startForegroundSafely(stringExtra2);
+        try {
+            System.loadLibrary("gojni");
+        } catch (Throwable unused5) {
+            state = STATE_ERROR;
+            lastError = "Ядро не найдено: в APK нет libgojni.so";
+            stopSelf();
+            return 2;
+        }
         if (prepare(this) != null) {
             state = STATE_ERROR;
             lastError = "Разрешение VPN не выдано";
@@ -121,6 +130,17 @@ public class GlobeVpnService extends VpnService {
             try {
                 builder.addDisallowedApplication(getPackageName());
             } catch (Exception unused2) {
+            }
+            // обход VPN для выбранных приложений (список задаётся в настройках)
+            try {
+                JSONArray bypass = new JSONArray(getSharedPreferences("globe-vpn", 0).getString("bypass", "[]"));
+                for (int bi = 0; bi < bypass.length(); bi += 1) {
+                    try {
+                        builder.addDisallowedApplication(bypass.getString(bi));
+                    } catch (Exception unused4) {
+                    }
+                }
+            } catch (Exception unused3) {
             }
             ParcelFileDescriptor establish = builder.establish();
             this.tunnel = establish;

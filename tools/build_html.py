@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+# ВНИМАНИЕ: с v4 источником истины стал app/assets/vpn.html (правится напрямую).
+# Этот патчер перезаписывает app/assets/vpn.html из source/vpn.html и откатит правки v4.
+# Не запускать без резервной копии.
 """Full patcher: builds app/assets/vpn.html from source/vpn.html with all UI/UX changes."""
 import sys
 

@@ -3201,6 +3201,81 @@ body[data-many="true"] * { -webkit-backdrop-filter: none !important; backdrop-fi
 body[data-many="true"] .srv { transition: none; }
 </style>
 </head>
+<style id="v4-polish">
+/* v4: переключатели — компактная форма, ползунок строго по центру */
+.switch { position: relative; width: 46px; height: 28px; border-radius: 999px; flex: 0 0 auto; padding: 0; }
+.switch span { position: absolute; top: 3px; left: 3px; width: 22px; height: 22px; transform: none; box-shadow: 0 1px 3px rgba(20, 22, 20, .25); }
+.switch[aria-checked="true"] span { transform: translateX(18px); }
+
+/* настройки — один левый край, текст без рваных переносов */
+#view-settings .row { align-items: center; gap: 16px; }
+#view-settings .row-copy { flex: 1 1 auto; min-width: 0; text-align: left; }
+#view-settings .row-label,
+#view-settings .row-note { margin: 0; text-align: left; max-width: none; text-wrap: pretty; }
+#view-settings .row-stack { display: flex; flex-direction: column; align-items: stretch; gap: 12px; }
+#view-settings .row-stack > .row-copy { width: 100%; }
+#view-settings .swatches {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, 34px);
+  gap: 10px;
+  justify-content: start;
+  margin: 0;
+}
+#view-settings .swatch { width: 34px; height: 34px; }
+#view-settings .accent-value { margin: 0; text-align: left; }
+
+/* переключатели тем — только иконки */
+.segmented-icons button { display: flex; align-items: center; justify-content: center; padding: 8px 0; }
+.segmented-icons button svg { width: 20px; height: 20px; }
+
+/* календарь: квадраты в пределах карточки, без касания краёв */
+.stats-group .heat-scroll { margin: 12px 18px 0; padding: 0; overflow: visible; }
+.stats-group .heat-legend { margin: 12px 18px 0; }
+.stats-group .heat-legend + .row-note { margin: 0 18px; }
+.stats-group .heat { justify-content: stretch; justify-items: stretch; }
+.stats-group .heat { width: 100%; gap: 3px; grid-auto-columns: minmax(0, 1fr); }
+.stats-group .heat i { width: 100%; height: auto; aspect-ratio: 1 / 1; border-radius: 3px; }
+
+/* последние дни: сетка «день | полоса | значение» внутри карточки */
+.stats-group .stats-days { margin: 12px 18px 0; }
+.stats-group .stats-day {
+  display: grid;
+  grid-template-columns: 150px minmax(0, 1fr) 84px;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+}
+.stats-group .stats-day:last-child { border-bottom: 0; }
+.stats-group .stats-day-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; }
+.stats-group .stats-day-value { text-align: right; white-space: nowrap; }
+
+/* обход приложений */
+.bypass-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.bypass-search {
+  width: 100%;
+  box-sizing: border-box;
+  height: 40px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--paper-2, transparent);
+  color: var(--ink);
+  font: inherit;
+  font-size: 14px;
+}
+.bypass-list { display: flex; flex-direction: column; max-height: 380px; overflow-y: auto; border-top: 1px solid var(--line); }
+.bypass-row { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.bypass-icon {
+  width: 32px; height: 32px; flex: 0 0 32px; border-radius: 8px; object-fit: cover;
+  display: grid; place-items: center; background: var(--paper-2, transparent);
+  color: var(--muted); font-size: 14px; font-weight: 600; border: 0; padding: 0;
+}
+.bypass-copy { flex: 1 1 auto; min-width: 0; text-align: left; }
+.bypass-name, .bypass-pkg { margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: left; }
+.bypass-name { font-size: 14px; color: var(--ink); }
+.bypass-pkg { font-size: 11px; color: var(--muted); font-family: var(--mono); }
+</style>
 <body data-view="home">
 
 <svg class="glass-defs" width="0" height="0" aria-hidden="true" focusable="false"><defs>
@@ -3237,10 +3312,6 @@ body[data-many="true"] .srv { transition: none; }
         </svg>
         <svg class="slider-icon slider-stop" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true">
           <rect x="7.4" y="7.4" width="9.2" height="9.2" rx="2.2" />
-        </svg>
-        <svg class="slider-icon slider-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M5 12h13" />
-          <path d="M13.2 6.6 19 12l-5.8 5.4" />
         </svg>
       </button>
     </div>
@@ -3559,9 +3630,10 @@ body[data-many="true"] .srv { transition: none; }
         <h2>Интерфейс</h2>
         <div class="row row-stack">
           <p class="row-label">Тема</p>
-          <div class="segmented" role="group" aria-label="Тема интерфейса">
-            <button type="button" data-theme-value="paper" aria-pressed="true">Бумага</button>
-            <button type="button" data-theme-value="night" aria-pressed="false">Ночь</button>
+          <div class="segmented segmented-icons" role="group" aria-label="Тема интерфейса">
+            <button type="button" data-theme-value="auto" aria-pressed="true" aria-label="Авто: как в системе" title="Авто: как в системе"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor"/></svg></button>
+            <button type="button" data-theme-value="paper" aria-pressed="false" aria-label="Светлая" title="Светлая"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.3 5.3l1.6 1.6M17.1 17.1l1.6 1.6M5.3 18.7l1.6-1.6M17.1 6.9l1.6-1.6"/></svg></button>
+            <button type="button" data-theme-value="night" aria-pressed="false" aria-label="Тёмная" title="Тёмная"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></svg></button>
           </div>
         </div>
         <div class="row row-stack">
@@ -3574,17 +3646,22 @@ body[data-many="true"] .srv { transition: none; }
         </div>
         <div class="row">
           <div class="row-copy">
-            <p class="row-label">Мягкие формы</p>
-            <p class="row-note">Скруглённые кнопки, поля и переключатели.</p>
-          </div>
-          <button class="switch" type="button" role="switch" aria-checked="false" aria-label="Мягкие формы" data-setting="soft"><span></span></button>
-        </div>
-        <div class="row">
-          <div class="row-copy">
             <p class="row-label">Компактные списки</p>
             <p class="row-note">Больше серверов на экране.</p>
           </div>
           <button class="switch" type="button" role="switch" aria-checked="false" aria-label="Компактные списки" data-setting="compact"><span></span></button>
+        </div>
+        <div class="row row-stack">
+          <div class="row-copy">
+            <p class="row-label">Виброотклик</p>
+            <p class="row-note">Лёгкая отдача при нажатиях и подключении.</p>
+          </div>
+          <div class="segmented segmented-sm" role="group" aria-label="Сила виброотклика">
+            <button type="button" data-group="haptic" data-value="0" aria-pressed="false">Выкл</button>
+            <button type="button" data-group="haptic" data-value="1" aria-pressed="false">Слабый</button>
+            <button type="button" data-group="haptic" data-value="2" aria-pressed="true">Средний</button>
+            <button type="button" data-group="haptic" data-value="3" aria-pressed="false">Сильный</button>
+          </div>
         </div>
         <div class="row">
           <div class="row-copy">
@@ -3709,6 +3786,29 @@ body[data-many="true"] .srv { transition: none; }
           </div>
         </div>
         <p class="settings-note">Серверы и подписки хранятся только на этом устройстве. Клиент поднимает интерфейс и управление серверами; сам туннель подключается ядром (VLESS / Trojan / Hysteria2), которое ставится отдельно в сборку.</p>
+      </section>
+
+      <section class="group" id="bypass-group">
+        <h2>Обход приложений</h2>
+        <div class="row">
+          <div class="row-copy">
+            <p class="row-label">Российские сайты напрямую</p>
+            <p class="row-note">Домены .ru, .su и .рф не идут через VPN.</p>
+          </div>
+          <button class="switch" type="button" role="switch" aria-checked="true" aria-label="Российские сайты напрямую" data-setting="ruBypass"><span></span></button>
+        </div>
+        <div class="row row-stack">
+          <div class="row-copy">
+            <p class="row-label">Приложения без VPN</p>
+            <p class="row-note" id="bypass-count">Выбранные приложения не используют VPN. Список применяется при следующем подключении.</p>
+          </div>
+          <div class="bypass-actions">
+            <button class="ghost" type="button" id="bypass-ru">Готовый список «Россия»</button>
+            <button class="ghost" type="button" id="bypass-clear">Очистить</button>
+          </div>
+          <input class="bypass-search" id="bypass-search" type="search" placeholder="Поиск приложения" aria-label="Поиск приложения">
+          <div class="bypass-list" id="bypass-list"></div>
+        </div>
       </section>
 
       <section class="group group-last">
@@ -4477,44 +4577,59 @@ window.GEO_CITIES = [
       visible.push({ button: button, x: p.x, y: p.y, z: p.z, city: String(server.city || '') });
     });
 
-    // маркеры: убираем перекрытия и «плохие» серверы
+    // маркеры: серверы на одной точке (и «плохие» >200 мс / недоступные) — кольцо фиксированного шага,
+    // одиночные серверы остаются на своих координатах; порядок стабилен (по id).
     visible.sort(function (a, b) { return String(a.button.dataset.id).localeCompare(String(b.button.dataset.id)); });
-    const occupied = [];
-    const originPoint = this.project(this.originVec, {});
-    if (originPoint.z > 0.015) occupied.push({ x: originPoint.x, y: originPoint.y });
-    const MIN_GAP = 40;
-    visible.forEach(function (item) {
+    const alive = visible.filter(function (item) {
       const entry = self.latency ? self.latency[item.button.dataset.id] : null;
       const dead = entry && (entry.ms == null || (Number.isFinite(entry.ms) && entry.ms > 200));
       item.button.classList.toggle('is-offline', !!dead);
-      if (dead) {
-        item.hidden = true;
-        item.button.style.visibility = 'hidden';
-        item.button.classList.add('is-hidden-map');
-        return;
+      item.button.classList.toggle('is-hidden-map', !!dead);
+      if (dead) item.button.style.visibility = 'hidden';
+      return !dead;
+    });
+    const CLUSTER_PX = 7; // серверы ближе этого расстояния считаются одной точкой
+    const parent = alive.map(function (_, i) { return i; });
+    const find = function (i) { while (parent[i] !== i) { parent[i] = parent[parent[i]]; i = parent[i]; } return i; };
+    for (let i = 0; i < alive.length; i += 1) {
+      for (let j = i + 1; j < alive.length; j += 1) {
+        const dx = alive[i].x - alive[j].x;
+        const dy = alive[i].y - alive[j].y;
+        if (dx * dx + dy * dy < CLUSTER_PX * CLUSTER_PX) parent[find(i)] = find(j);
       }
-      item.button.classList.remove('is-hidden-map');
-      let x = item.x;
-      let y = item.y;
-      let tries = 0;
-      while (tries < 14) {
-        const clash = occupied.some(function (other) {
-          const dx = other.x - x;
-          const dy = other.y - y;
-          return dx * dx + dy * dy < MIN_GAP * MIN_GAP;
-        });
-        if (!clash) break;
-        tries += 1;
-        const angle = tries * 2.399963;
-        const radius = MIN_GAP * (0.55 + tries * 0.3);
-        x = item.x + Math.cos(angle) * radius;
-        y = item.y + Math.sin(angle) * radius;
+    }
+    const groups = {};
+    alive.forEach(function (item, i) {
+      const r = find(i);
+      (groups[r] = groups[r] || []).push(item);
+    });
+    Object.keys(groups).forEach(function (key) {
+      const group = groups[key];
+      const n = group.length;
+      let cx = 0;
+      let cy = 0;
+      group.forEach(function (it) { cx += it.x; cy += it.y; });
+      cx /= n;
+      cy /= n;
+      // кольца с шагом 30px (флаг ~30px): радиус 18 + 30k, на кольце не больше длины окружности / 30
+      let placed = 0;
+      let ring = 0;
+      while (placed < n) {
+        const radius = n === 1 ? 0 : 18 + ring * 30;
+        const capacity = n === 1 ? 1 : Math.min(n - placed, Math.max(2, Math.floor((2 * Math.PI * radius) / 30)));
+        for (let k = 0; k < capacity; k += 1) {
+          const item = group[placed + k];
+          const angle = -Math.PI / 2 + (k * 2 * Math.PI) / capacity;
+          const x = n === 1 ? item.x : cx + Math.cos(angle) * radius;
+          const y = n === 1 ? item.y : cy + Math.sin(angle) * radius;
+          item.button.style.transform = 'translate3d(' + x.toFixed(1) + 'px,' + y.toFixed(1) + 'px,0) translate(-50%,-50%)';
+          item.button.classList.toggle('is-displaced', n > 1);
+          item.x = x;
+          item.y = y;
+        }
+        placed += capacity;
+        ring += 1;
       }
-      occupied.push({ x: x, y: y });
-      item.button.style.transform = 'translate3d(' + x.toFixed(1) + 'px,' + y.toFixed(1) + 'px,0) translate(-50%,-50%)';
-      item.button.classList.toggle('is-displaced', tries > 0);
-      item.x = x;
-      item.y = y;
     });
 
     // подписи городов: прячем те, что перекрываются с более близкими
@@ -14988,17 +15103,44 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
     return { id: preset.id, name: preset.name, hex: night ? preset.dark : preset.light, custom: false, source: '' };
   }
 
+  // «Авто» — светлая/тёмная по настройке системы; тема в settings.theme всегда конкретная
+  function resolveThemeMode(mode) {
+    if (mode === 'auto') {
+      return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'night' : 'paper';
+    }
+    return mode === 'night' ? 'night' : 'paper';
+  }
+
+  // Ready-made обход для российских приложений: префиксы package name
+  const RU_PREFIXES = ['ru.', 'com.yandex.', 'com.vk.', 'com.vkontakte.', 'ru.ok.', 'com.mail.', 'ru.mail.', 'com.sberbank.', 'ru.sberbankmobile', 'ru.tinkoff', 'ru.vtb', 'ru.alfabank', 'com.wildberries', 'com.avito', 'com.nspk.', 'ru.ozon', 'com.ozon', 'ru.beeline', 'ru.megafon', 'ru.mts', 'ru.rostelecom'];
+  const RU_DIRECT_RULE = {
+    type: 'field',
+    domain: ['regexp:\\.ru$', 'regexp:\\.su$', 'regexp:\\.xn--p1ai$', 'domain:yandex.net', 'domain:yastatic.net', 'domain:vk.com', 'domain:vk.me', 'domain:userapi.com'],
+    outboundTag: 'direct'
+  };
+
+  function loadCustomAccents() {
+    const list = store.read('vpn.customAccents', []);
+    if (!Array.isArray(list)) return [];
+    return list.filter(function (hex) { return typeof hex === 'string' && /^#[0-9a-f]{6}$/i.test(hex); }).slice(0, 12);
+  }
+
   function loadSettings() {
     const raw = store.read('vpn.settings', {});
-    const theme = store.read('vpn.theme', 'paper') === 'night' ? 'night' : 'paper';
+    const storedMode = store.read('vpn.theme', 'auto');
+    const themeMode = storedMode === 'paper' || storedMode === 'night' ? storedMode : 'auto';
+    const theme = resolveThemeMode(themeMode);
     return {
       theme: theme,
+      themeMode: themeMode,
       accent: typeof raw.accent === 'string' && raw.accent ? raw.accent : 'emerald',
       rotate: raw.rotate !== false,
       route: raw.route !== false,
       reduced: raw.reduced == null ? osReduced : raw.reduced === true,
       labels: raw.labels === true,
-      soft: raw.soft === true,
+      haptic: [0, 1, 2, 3].indexOf(Number(raw.haptic)) !== -1 ? Number(raw.haptic) : 2,
+      ruBypass: raw.ruBypass !== false,
+      customAccents: loadCustomAccents(),
       compact: raw.compact === true,
       ping: raw.ping !== false,
       dots: normalizeDots(raw.dots == null ? 1 : raw.dots),
@@ -15029,8 +15171,9 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
   const native = (window.Native && typeof window.Native.ping === 'function') ? window.Native : null;
 
   function haptic() {
+    if (!settings.haptic) return;
     if (!native || typeof native.haptic !== 'function') return;
-    try { native.haptic(); } catch (error) { /* не критично */ }
+    try { native.haptic(settings.haptic); } catch (error) { /* не критично */ }
   }
 
   function copyText(value) {
@@ -15579,15 +15722,17 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
       route: settings.route,
       reduced: settings.reduced,
       labels: settings.labels,
-      soft: settings.soft,
       compact: settings.compact,
+      haptic: settings.haptic,
+      ruBypass: settings.ruBypass,
       ping: settings.ping,
       dots: settings.dots,
       flags: settings.flags,
       speed: settings.speed,
       autoconnect: settings.autoconnect
     });
-    store.write('vpn.theme', settings.theme);
+    store.write('vpn.theme', settings.themeMode);
+    store.write('vpn.customAccents', settings.customAccents);
   }
 
   function findServer(id) {
@@ -15603,24 +15748,32 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
   }
 
   function buildSwatches() {
-    const box = $('.swatches', $('#view-settings'));
-    if (!box || box.childElementCount) return;
-    ACCENTS.forEach(function (item) {
+    const view = $('#view-settings');
+    const box = view ? $('.swatches', view) : null;
+    if (!box) return;
+    box.innerHTML = '';
+    const makeSwatch = function (value, label, color) {
       const button = document.createElement('button');
       button.type = 'button';
       button.className = 'swatch';
-      button.dataset.accent = item.id;
-      button.style.setProperty('--swatch', item.light);
-      button.setAttribute('aria-label', 'Акцентный цвет: ' + item.name);
+      button.dataset.accent = value;
+      button.style.setProperty('--swatch', color);
+      button.setAttribute('aria-label', 'Акцентный цвет: ' + label);
       button.setAttribute('aria-pressed', 'false');
       button.addEventListener('click', function () {
-        settings.accent = item.id;
-        applyTheme(settings.theme);
+        settings.accent = value;
+        applyTheme(settings.themeMode);
         syncSettings();
         persist();
         haptic();
       });
-      box.appendChild(button);
+      return button;
+    };
+    ACCENTS.forEach(function (item) {
+      box.appendChild(makeSwatch(item.id, item.name, item.light));
+    });
+    settings.customAccents.forEach(function (hex) {
+      box.appendChild(makeSwatch(hex, hex.toUpperCase(), hex));
     });
     const custom = document.createElement('label');
     custom.className = 'swatch swatch-custom';
@@ -15637,14 +15790,23 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
     let saveTimer = null;
     input.addEventListener('input', function () {
       settings.accent = input.value;
-      applyTheme(settings.theme);
+      applyTheme(settings.themeMode);
       syncSettings();
       window.clearTimeout(saveTimer);
       saveTimer = window.setTimeout(persist, 240);
     });
     input.addEventListener('change', function () {
       window.clearTimeout(saveTimer);
+      const hex = input.value.toLowerCase();
+      const isPreset = ACCENTS.some(function (item) { return item.light.toLowerCase() === hex; });
+      if (!isPreset && settings.customAccents.indexOf(hex) === -1) {
+        settings.customAccents = [hex].concat(settings.customAccents).slice(0, 12);
+      }
+      settings.accent = hex;
       persist();
+      buildSwatches();
+      applyTheme(settings.themeMode);
+      syncSettings();
       haptic();
     });
     box.appendChild(custom);
@@ -15852,7 +16014,7 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
     $$('[data-accent]').forEach(function (button) {
       const preset = ACCENTS.filter(function (item) { return item.id === button.dataset.accent; })[0];
       if (preset) button.style.setProperty('--swatch', settings.theme === 'night' ? preset.dark : preset.light);
-      button.setAttribute('aria-pressed', String(!resolved.custom && button.dataset.accent === resolved.id));
+      button.setAttribute('aria-pressed', String(button.dataset.accent === settings.accent));
     });
     const custom = $('.swatch-custom input');
     if (custom && resolved.custom && resolved.source) custom.value = resolved.source;
@@ -15860,7 +16022,8 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
   }
 
   function applyTheme(theme) {
-    settings.theme = theme === 'night' ? 'night' : 'paper';
+    if (theme === 'auto' || theme === 'paper' || theme === 'night') settings.themeMode = theme;
+    settings.theme = resolveThemeMode(settings.themeMode);
     document.documentElement.dataset.theme = settings.theme;
     applyAccent();
     const computed = getComputedStyle(document.documentElement);
@@ -15876,7 +16039,7 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
       try { native.setChrome(paper, settings.theme === 'night'); } catch (error) { /* не критично */ }
     }
     $$('[data-theme-value]').forEach(function (button) {
-      button.setAttribute('aria-pressed', String(button.dataset.themeValue === settings.theme));
+      button.setAttribute('aria-pressed', String(button.dataset.themeValue === settings.themeMode));
     });
   }
 
@@ -15892,7 +16055,6 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
     if (name === 'speed') globe.setSpin(settings.speed);
     if (name === 'flags') root.style.setProperty('--flag-scale', String(settings.flags));
     if (name === 'labels') document.body.dataset.labels = String(settings.labels);
-    if (name === 'soft') root.dataset.soft = String(settings.soft);
     if (name === 'compact') document.body.dataset.compact = String(settings.compact);
     if (name === 'ping' && settings.ping) {
       state.latencyAt = 0;
@@ -15910,7 +16072,7 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
       button.setAttribute('aria-pressed', String(settings[group] === Number(button.dataset.value)));
     });
     $$('[data-theme-value]', ui.settingsScreen).forEach(function (button) {
-      button.setAttribute('aria-pressed', String(button.dataset.themeValue === settings.theme));
+      button.setAttribute('aria-pressed', String(button.dataset.themeValue === settings.themeMode));
     });
   }
 
@@ -16813,7 +16975,7 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
           type: 'field',
           ip: ['10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16', '100.64.0.0/10', '127.0.0.0/8', '169.254.0.0/16'],
           outboundTag: 'direct'
-        }]
+        }].concat(settings.ruBypass ? [RU_DIRECT_RULE] : [])
       },
       dns: {
         servers: ['1.1.1.1', '8.8.8.8'],
@@ -18279,8 +18441,8 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
       settings.flags = normalizeFlags(settings.flags);
       settings.dots = normalizeDots(settings.dots);
       settings.speed = normalizeSpeed(settings.speed);
-      applyTheme(settings.theme);
-      ['rotate', 'route', 'reduced', 'dots', 'speed', 'flags', 'labels', 'soft', 'compact', 'ping'].forEach(applySetting);
+      applyTheme(settings.themeMode);
+      ['rotate', 'route', 'reduced', 'dots', 'speed', 'flags', 'labels', 'compact', 'ping'].forEach(applySetting);
       syncSettings();
     }
     persist();
@@ -18455,15 +18617,16 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
     settings.route = true;
     settings.reduced = osReduced;
     settings.labels = false;
-    settings.soft = false;
+    settings.haptic = 2;
+    settings.ruBypass = true;
     settings.compact = false;
     settings.ping = true;
     settings.dots = 1;
     settings.flags = 1;
     settings.speed = 1;
     settings.autoconnect = false;
-    applyTheme('paper');
-    ['rotate', 'route', 'reduced', 'dots', 'speed', 'flags', 'labels', 'soft', 'compact'].forEach(applySetting);
+    applyTheme('auto');
+    ['rotate', 'route', 'reduced', 'dots', 'speed', 'flags', 'labels', 'compact'].forEach(applySetting);
     syncSettings();
     persist();
     showToast('Настройки сброшены');
@@ -18485,9 +18648,165 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
     if (ui.sliderKnob) ui.sliderKnob.click();
   });
 
+  // ── обход приложений (VpnService.addDisallowedApplication) ─────────────
+  const bypassState = { apps: [], set: null, filter: '' };
+  bypassState.set = (function () {
+    const stored = store.read('vpn.bypass', null);
+    return Array.isArray(stored) ? stored : null;
+  })();
+
+  function isRuPackage(pkg) {
+    return RU_PREFIXES.some(function (prefix) { return pkg.indexOf(prefix) === 0; });
+  }
+
+  function saveBypass() {
+    store.write('vpn.bypass', bypassState.set || []);
+    if (native && typeof native.setBypass === 'function') {
+      try { native.setBypass(JSON.stringify(bypassState.set || [])); } catch (error) { /* не критично */ }
+    }
+  }
+
+  function loadApps() {
+    let list = [];
+    if (native && typeof native.listApps === 'function') {
+      try { list = JSON.parse(native.listApps() || '[]'); } catch (error) { list = []; }
+    }
+    bypassState.apps = (Array.isArray(list) ? list : [])
+      .filter(function (app) { return app && app.p; })
+      .sort(function (a, b) { return String(a.n).localeCompare(String(b.n), 'ru'); });
+    if (bypassState.set === null && bypassState.apps.length) {
+      bypassState.set = bypassState.apps.filter(function (app) { return isRuPackage(app.p); }).map(function (app) { return app.p; });
+      saveBypass();
+    }
+  }
+
+  function updateBypassCount() {
+    const note = document.getElementById('bypass-count');
+    if (!note) return;
+    const count = (bypassState.set || []).length;
+    note.textContent = count
+      ? 'Без VPN: ' + count + '. Список применяется при следующем подключении.'
+      : 'Все приложения идут через VPN. Список применяется при следующем подключении.';
+  }
+
+  function renderBypass() {
+    const list = document.getElementById('bypass-list');
+    if (!list) return;
+    const set = bypassState.set || [];
+    const q = bypassState.filter.trim().toLowerCase();
+    list.innerHTML = '';
+    if (!bypassState.apps.length) {
+      const empty = document.createElement('p');
+      empty.className = 'row-note';
+      empty.textContent = 'Список приложений доступен в установленной версии приложения.';
+      list.appendChild(empty);
+    }
+    bypassState.apps.filter(function (app) {
+      return !q || app.n.toLowerCase().indexOf(q) !== -1 || app.p.indexOf(q) !== -1;
+    }).forEach(function (app) {
+      const row = document.createElement('div');
+      row.className = 'bypass-row';
+      const icon = document.createElement(app.i ? 'img' : 'span');
+      icon.className = 'bypass-icon';
+      if (app.i) { icon.src = app.i; icon.alt = ''; } else { icon.textContent = String(app.n).charAt(0).toUpperCase(); }
+      const copy = document.createElement('div');
+      copy.className = 'bypass-copy';
+      const name = document.createElement('p');
+      name.className = 'bypass-name';
+      name.textContent = app.n;
+      const pkg = document.createElement('p');
+      pkg.className = 'bypass-pkg';
+      pkg.textContent = app.p;
+      copy.appendChild(name);
+      copy.appendChild(pkg);
+      const toggle = document.createElement('button');
+      toggle.type = 'button';
+      toggle.className = 'switch';
+      toggle.setAttribute('role', 'switch');
+      toggle.setAttribute('aria-label', 'Без VPN: ' + app.n);
+      toggle.setAttribute('aria-checked', String(set.indexOf(app.p) !== -1));
+      toggle.appendChild(document.createElement('span'));
+      toggle.addEventListener('click', function () {
+        const on = (bypassState.set || []).indexOf(app.p) !== -1;
+        bypassState.set = on ? bypassState.set.filter(function (p) { return p !== app.p; }) : (bypassState.set || []).concat([app.p]);
+        toggle.setAttribute('aria-checked', String(!on));
+        updateBypassCount();
+        saveBypass();
+      });
+      row.appendChild(icon);
+      row.appendChild(copy);
+      row.appendChild(toggle);
+      list.appendChild(row);
+    });
+    updateBypassCount();
+  }
+
+  function initBypass() {
+    loadApps();
+    if (bypassState.apps.length) saveBypass();
+    const search = document.getElementById('bypass-search');
+    if (search) search.addEventListener('input', function () { bypassState.filter = search.value; renderBypass(); });
+    const ru = document.getElementById('bypass-ru');
+    if (ru) ru.addEventListener('click', function () {
+      bypassState.set = bypassState.apps.filter(function (app) { return isRuPackage(app.p); }).map(function (app) { return app.p; });
+      saveBypass();
+      renderBypass();
+      showToast('Список «Россия» применён');
+    });
+    const clear = document.getElementById('bypass-clear');
+    if (clear) clear.addEventListener('click', function () {
+      bypassState.set = [];
+      saveBypass();
+      renderBypass();
+    });
+    renderBypass();
+  }
+
+  // ── свайп влево/вправо переключает вкладки (кроме слайдера, полос прокрутки, поля ввода и глобуса)
+  function initSwipe() {
+    const views = $$('.dock-item[data-nav]').map(function (el) { return el.dataset.nav; });
+    const blocked = '.slider, input, textarea, select, .segmented, .swatches, .heat-scroll, .bypass-list, .stats-days, #globe, .sheet, [contenteditable="true"]';
+    let sx = 0;
+    let sy = 0;
+    let t0 = 0;
+    let active = false;
+    document.addEventListener('pointerdown', function (event) {
+      active = false;
+      if (!event.isPrimary) return;
+      if (event.pointerType === 'mouse' && event.button !== 0) return;
+      if (event.target.closest && event.target.closest(blocked)) return;
+      sx = event.clientX;
+      sy = event.clientY;
+      t0 = Date.now();
+      active = true;
+    }, { passive: true });
+    document.addEventListener('pointerup', function (event) {
+      if (!active) return;
+      active = false;
+      const dx = event.clientX - sx;
+      const dy = event.clientY - sy;
+      if (Date.now() - t0 > 650 || Math.abs(dx) < 64 || Math.abs(dy) > Math.abs(dx) * 0.5) return;
+      const sheet = document.getElementById('server-sheet');
+      if (sheet && !sheet.hidden) return;
+      const i = views.indexOf(state.view);
+      if (i === -1) return;
+      const next = dx < 0 ? i + 1 : i - 1;
+      if (next < 0 || next >= views.length) return;
+      showView(views[next]);
+    }, { passive: true });
+  }
+
   buildSwatches();
-  applyTheme(settings.theme);
-  ['rotate', 'route', 'reduced', 'dots', 'speed', 'flags', 'labels', 'soft', 'compact'].forEach(applySetting);
+  applyTheme(settings.themeMode);
+  if (window.matchMedia) {
+    const schemeQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    const onScheme = function () { if (settings.themeMode === 'auto') applyTheme('auto'); };
+    if (schemeQuery.addEventListener) schemeQuery.addEventListener('change', onScheme);
+    else if (schemeQuery.addListener) schemeQuery.addListener(onScheme);
+  }
+  initBypass();
+  initSwipe();
+  ['rotate', 'route', 'reduced', 'dots', 'speed', 'flags', 'labels', 'compact'].forEach(applySetting);
   syncSettings();
   renderServers();
   renderSubs();

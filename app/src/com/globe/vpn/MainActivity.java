@@ -4,6 +4,12 @@ import android.app.Activity;
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Intent;
+import android.content.pm.PackageManager;
+import android.content.pm.ResolveInfo;
+import android.graphics.Bitmap;
+import android.graphics.Canvas;
+import android.graphics.drawable.Drawable;
+import android.util.Base64;
 import android.graphics.Color;
 import android.net.Uri;
 import android.net.VpnService;
@@ -30,6 +36,9 @@ import java.net.HttpURLConnection;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 import java.util.Iterator;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
@@ -328,6 +337,16 @@ public class MainActivity extends Activity {
         });
     }
 
+    static String iconDataUrl(Drawable drawable) {
+        Bitmap bitmap = Bitmap.createBitmap(48, 48, Bitmap.Config.ARGB_8888);
+        Canvas canvas = new Canvas(bitmap);
+        drawable.setBounds(0, 0, 48, 48);
+        drawable.draw(canvas);
+        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+        bitmap.compress(Bitmap.CompressFormat.PNG, 90, bytes);
+        return "data:image/png;base64," + Base64.encodeToString(bytes.toByteArray(), Base64.NO_WRAP);
+    }
+
     private class Bridge {
         @JavascriptInterface
         public boolean available() {
@@ -368,16 +387,58 @@ public class MainActivity extends Activity {
                     + JSONObject.quote(text) + ")");
         }
 
+        /** Виброотклик: 1 — слабый, 2 — средний, 3 — сильный. */
         @JavascriptInterface
-        public void haptic() {
+        public void haptic(final int level) {
             MainActivity.this.runOnUiThread(new Runnable() { // from class: com.globe.vpn.MainActivity.Bridge.1
                 @Override // java.lang.Runnable
                 public void run() {
-                    if (MainActivity.this.web != null) {
+                    if (MainActivity.this.web == null) {
+                        return;
+                    }
+                    if (level >= 3) {
+                        MainActivity.this.web.performHapticFeedback(0, 2);
+                    } else if (level == 2) {
                         MainActivity.this.web.performHapticFeedback(1, 2);
+                    } else {
+                        MainActivity.this.web.performHapticFeedback(1, 0);
                     }
                 }
             });
+        }
+
+        /** Установленные приложения с запуском: [{"p": пакет, "n": название, "i": иконка PNG data-url}]. */
+        @JavascriptInterface
+        public String listApps() {
+            try {
+                PackageManager pm = getPackageManager();
+                Intent launcher = new Intent(Intent.ACTION_MAIN);
+                launcher.addCategory(Intent.CATEGORY_LAUNCHER);
+                List<ResolveInfo> infos = pm.queryIntentActivities(launcher, 0);
+                Set<String> seen = new HashSet<String>();
+                JSONArray out = new JSONArray();
+                for (ResolveInfo info : infos) {
+                    String pkg = info.activityInfo.packageName;
+                    if (pkg.equals(getPackageName()) || !seen.add(pkg)) {
+                        continue;
+                    }
+                    JSONObject item = new JSONObject();
+                    item.put("p", pkg);
+                    item.put("n", String.valueOf(info.loadLabel(pm)));
+                    item.put("i", iconDataUrl(info.loadIcon(pm)));
+                    out.put(item);
+                }
+                return out.toString();
+            } catch (Exception unused) {
+                return "[]";
+            }
+        }
+
+        /** Список приложений в обходе VPN (JSON-массив пакетов); применяется при следующем подключении. */
+        @JavascriptInterface
+        public void setBypass(String json) {
+            String value = json == null ? "[]" : json;
+            getSharedPreferences("globe-vpn", 0).edit().putString("bypass", value).apply();
         }
 
         @JavascriptInterface
