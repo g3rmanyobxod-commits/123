@@ -2920,11 +2920,9 @@ body { font-family: var(--sans); }
   transition: opacity .18s ease, transform .3s ease;
 }
 
-.slider-plus,
-.slider-stop { opacity: 0; transform: scale(.7); }
+.slider-plus { opacity: 0; transform: scale(.7); }
 
-.slider[data-state="empty"] .slider-power,
-.slider[data-state="empty"] .slider-stop { opacity: 0; transform: scale(.7); }
+.slider[data-state="empty"] .slider-power { opacity: 0; transform: scale(.7); }
 .slider[data-state="empty"] .slider-plus { opacity: 1; transform: scale(1); }
 
 .slider[data-state="connected"] {
@@ -2956,7 +2954,6 @@ body { font-family: var(--sans); }
 }
 
 .slider[data-state="connected"] .slider-power { opacity: 0; transform: scale(.7); }
-.slider[data-state="connected"] .slider-stop { opacity: 1; transform: scale(1); }
 
 .slider[data-state="connecting"] { background: var(--paper-2); }
 .slider[data-state="connecting"] .slider-label { color: var(--ink); opacity: 1; }
@@ -3513,6 +3510,30 @@ html { touch-action: manipulation; }
   @media (max-width: 380px) {
     .stats-group .heat-mode button { padding: 5px 9px; font-size: 11px; }
   }
+
+/* v11: удержание для отключения, перенос названия бесплатной группы */
+.slider[data-state="connected"] .slider-knob {
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  cursor: pointer;
+}
+.slider.is-holding .slider-knob { transition: none; }
+.group-name.is-wrap {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  overflow-wrap: normal;
+  word-break: normal;
+  line-height: 1.2;
+}
+/* бесплатная группа: при нехватке ширины кнопки переносятся на свою строку, слова не режутся */
+.group-head.is-free { flex-wrap: wrap; row-gap: 6px; }
+.group-head.is-free > .group-tools { margin-left: auto; }
+/* v11: адаптивность — сегменты не обрезают текст (ряд прокручивается), строка статистики сжимает название */
+.segmented button { min-width: max-content; }
+.stats-group .stats-day { grid-template-columns: minmax(0, 150px) minmax(0, 1fr) 84px; }
 </style>
 <body data-view="home">
 
@@ -3551,9 +3572,6 @@ html { touch-action: manipulation; }
         </svg>
         <svg class="slider-icon slider-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true">
           <path d="M12 5v14M5 12h14" />
-        </svg>
-        <svg class="slider-icon slider-stop" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true">
-          <rect x="7.4" y="7.4" width="9.2" height="9.2" rx="2.2" />
         </svg>
       </button>
       <span class="slider-end" aria-hidden="true">
@@ -3936,6 +3954,17 @@ html { touch-action: manipulation; }
             <button type="button" data-group="flags" data-value="0.85" aria-pressed="false">Мелкие</button>
             <button type="button" data-group="flags" data-value="1" aria-pressed="true">Обычные</button>
             <button type="button" data-group="flags" data-value="1.25" aria-pressed="false">Крупные</button>
+          </div>
+        </div>
+        <div class="row row-stack">
+          <div class="row-copy">
+            <p class="row-label">Размер интерфейса</p>
+            <p class="row-note">Меняет размер всего интерфейса.</p>
+          </div>
+          <div class="segmented" role="group" aria-label="Размер интерфейса">
+            <button type="button" data-group="uiScale" data-value="0.9" aria-pressed="false">Мельче</button>
+            <button type="button" data-group="uiScale" data-value="1" aria-pressed="true">Обычный</button>
+            <button type="button" data-group="uiScale" data-value="1.12" aria-pressed="false">Крупнее</button>
           </div>
         </div>
         <div class="row row-stack">
@@ -15513,6 +15542,11 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
     return n === 0.5 || n === 2 ? n : 1;
   }
 
+  function normalizeUiScale(value) {
+    const n = Number(value);
+    return n === 0.9 || n === 1.12 ? n : 1;
+  }
+
   function normalizeFlags(value) {
     const n = Number(value);
     return n === 0.85 || n === 1.25 ? n : 1;
@@ -15652,6 +15686,7 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
       ping: raw.ping !== false,
       dots: normalizeDots(raw.dots == null ? 1 : raw.dots),
       flags: normalizeFlags(raw.flags == null ? 1 : raw.flags),
+      uiScale: normalizeUiScale(raw.uiScale),
       speed: normalizeSpeed(raw.speed == null ? 1 : raw.speed),
       autoconnect: raw.autoconnect === true,
       pingOne: raw.pingOne === true,
@@ -16264,6 +16299,7 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
       ping: settings.ping,
       dots: settings.dots,
       flags: settings.flags,
+      uiScale: settings.uiScale,
       speed: settings.speed,
       autoconnect: settings.autoconnect
     });
@@ -16590,6 +16626,7 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
     if (name === 'dots') globe.setDotScale(settings.dots);
     if (name === 'speed') globe.setSpin(settings.speed);
     if (name === 'flags') root.style.setProperty('--flag-scale', String(settings.flags));
+    if (name === 'uiScale') root.style.zoom = String(settings.uiScale);
     if (name === 'labels') document.body.dataset.labels = String(settings.labels);
     if (name === 'compact') document.body.dataset.compact = String(settings.compact);
     if (name === 'ping' && settings.ping) {
@@ -16689,6 +16726,10 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
 
       function sliderState(next) {
     if (!slider.el) return;
+    if (!slider.hold) {
+      slider.el.style.width = '';
+      slider.el.style.transition = '';
+    }
     slider.el.dataset.state = next;
     if (next === 'connected') {
       sliderPaint(0, true);
@@ -16736,9 +16777,64 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
     slider.label = ui.sliderLabel;
     slider.armed = false;
 
+    // отключение: кнопку нужно зажать ~900 мс; пилюля растягивается до ширины слайдера, ручка немного растёт
+    const HOLD_MS = 900;
+    const HOLD_HINT = 'Зажмите кнопку, чтобы отключить VPN';
+    function holdFrame() {
+      const hold = slider.hold;
+      if (!hold) return;
+      const p = Math.min(1, (performance.now() - hold.start) / HOLD_MS);
+      el.style.width = (64 + (hold.idle - 64) * p) + 'px';
+      knob.style.transform = 'scale(' + (1 + 0.06 * p) + ')';
+      if (p >= 1) {
+        slider.hold = null;
+        el.classList.remove('is-holding');
+        stopConnection();
+        window.setTimeout(function () {
+          if (!slider.hold && vpnStateName() === 'connected') resetHoldStyle();
+        }, 1500);
+        return;
+      }
+      hold.raf = requestAnimationFrame(holdFrame);
+    }
+    function resetHoldStyle() {
+      el.style.width = '';
+      el.style.transition = '';
+      sliderPaint(0, true);
+    }
+    function startHold(event) {
+      if (slider.hold) return;
+      const parentW = el.parentElement ? el.parentElement.clientWidth : 0;
+      slider.idleW = parentW > 64 ? parentW : (slider.idleW || 300);
+      slider.hold = { start: performance.now(), idle: slider.idleW, raf: 0 };
+      el.style.transition = 'none';
+      el.classList.add('is-holding');
+      if (knob.setPointerCapture) {
+        try { knob.setPointerCapture(event.pointerId); } catch (error) { /* не критично */ }
+      }
+      slider.hold.raf = requestAnimationFrame(holdFrame);
+    }
+    function cancelHold() {
+      const hold = slider.hold;
+      if (!hold) return;
+      slider.hold = null;
+      if (hold.raf) cancelAnimationFrame(hold.raf);
+      el.classList.remove('is-holding');
+      resetHoldStyle();
+      showToast(HOLD_HINT);
+    }
+    knob.addEventListener('pointerup', cancelHold);
+    knob.addEventListener('pointercancel', cancelHold);
+    knob.addEventListener('lostpointercapture', cancelHold);
+    knob.addEventListener('contextmenu', function (event) { event.preventDefault(); });
+
     knob.addEventListener('pointerdown', function (event) {
       const vpn = vpnStateName();
-      if (vpn === 'connected') return;
+      if (vpn === 'connected') {
+        startHold(event);
+        event.preventDefault();
+        return;
+      }
       if (el.dataset.state === 'empty') return;
       slider.dragging = true;
       slider.startX = event.clientX;
@@ -16791,7 +16887,8 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
       event.preventDefault();
       if (slider.justDragged) { slider.justDragged = false; return; }
       const current = vpnStateName();
-      if (current === 'connected') { stopConnection(); return; }
+      // в подключённом состоянии отключение только удержанием (startHold); клавиатура получает подсказку
+      if (current === 'connected') { if (event.detail === 0) showToast(HOLD_HINT); return; }
       if (el.dataset.state === 'empty') { sliderPrimary(); return; }
       el.classList.add('is-empty-hint');
       window.setTimeout(function () { el.classList.remove('is-empty-hint'); }, 1100);
@@ -16858,7 +16955,7 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
     else if (failed) ui.connStatus.textContent = (state.vpn.error || 'Ошибка').slice(0, 42);
     else ui.connStatus.textContent = 'Не подключено · ' + pingText;
 
-    ui.pathTo.textContent = server.flag || (server.code ? codeToFlag(server.code) : '·');
+    ui.pathTo.textContent = server.city || '·';
     ui.pathTo.setAttribute('aria-label', 'Последний сервер: ' + server.city);
     ui.pathTo.title = server.city;
     ui.pathTo.classList.remove('is-empty');
@@ -17132,6 +17229,10 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
   }
 
   function shareSubscription(sub) {
+    if (sub && sub.id === 'free') {
+      showToast('Бесплатными серверами нельзя делиться');
+      return;
+    }
     const text = sub.url || sub.content || '';
     if (!text) {
       showToast('У подписки нет адреса для отправки');
@@ -17983,6 +18084,7 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
     copy.className = 'group-copy';
     const name = document.createElement('span');
     name.className = 'group-name';
+    if (sub && sub.id === 'free') name.classList.add('is-wrap');
     name.textContent = options.name;
     copy.appendChild(name);
     const headTraffic = sub && !sub.hideTraffic ? trafficStats(sub.meta && sub.meta.traffic) : null;
@@ -18045,7 +18147,7 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
         event.stopPropagation();
         shareSubscription(sub);
       });
-      tools.appendChild(share);
+      if (sub.id !== 'free') tools.appendChild(share);
       const remove = document.createElement('button');
       remove.type = 'button';
       remove.className = 'group-action is-danger';
@@ -18059,6 +18161,7 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
       });
       tools.appendChild(remove);
     }
+    if (sub && sub.id === 'free') head.classList.add('is-free');
     head.appendChild(toggle);
     head.appendChild(tools);
     card.appendChild(head);
@@ -19773,7 +19876,7 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
       settings.dots = normalizeDots(settings.dots);
       settings.speed = normalizeSpeed(settings.speed);
       applyTheme(settings.themeMode);
-      ['rotate', 'route', 'reduced', 'dots', 'speed', 'flags', 'labels', 'compact', 'ping'].forEach(applySetting);
+      ['rotate', 'route', 'reduced', 'dots', 'speed', 'flags', 'uiScale', 'labels', 'compact', 'ping'].forEach(applySetting);
       syncSettings();
     }
     persist();
@@ -19957,7 +20060,7 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
     settings.speed = 1;
     settings.autoconnect = false;
     applyTheme('auto');
-    ['rotate', 'route', 'reduced', 'dots', 'speed', 'flags', 'labels', 'compact'].forEach(applySetting);
+    ['rotate', 'route', 'reduced', 'dots', 'speed', 'flags', 'uiScale', 'labels', 'compact'].forEach(applySetting);
     syncSettings();
     persist();
     showToast('Настройки сброшены');
@@ -20152,7 +20255,7 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
   }
   initBypass();
   initSwipe();
-  ['rotate', 'route', 'reduced', 'dots', 'speed', 'flags', 'labels', 'compact'].forEach(applySetting);
+  ['rotate', 'route', 'reduced', 'dots', 'speed', 'flags', 'uiScale', 'labels', 'compact'].forEach(applySetting);
   syncSettings();
   renderServers();
   renderSubs();

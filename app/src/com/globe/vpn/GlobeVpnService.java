@@ -4,8 +4,13 @@ import android.app.Notification;
 import android.app.PendingIntent;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
+import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.net.ConnectivityManager;
+import android.net.Network;
+import android.net.NetworkCapabilities;
+import android.net.NetworkRequest;
 import android.net.VpnService;
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -46,6 +51,12 @@ public class GlobeVpnService extends VpnService {
     // фоновый автопилот: текущий конфиг (нормализованный) и поток проверок
     private volatile String currentConfig = "";
     private volatile Thread autopilotThread;
+    // v11: смена сети (Wi-Fi / мобильная) будит автопилот, не дожидаясь очередной проверки
+    private final Object autopilotLock = new Object();
+    private volatile boolean networkWake = false;
+    private volatile long netGraceUntil = 0L;
+    private ConnectivityManager.NetworkCallback wifiCallback;
+    private ConnectivityManager.NetworkCallback cellCallback;
 
     static void reset() {
         state = STATE_IDLE;
@@ -287,6 +298,7 @@ public class GlobeVpnService extends VpnService {
 
     private void stopCore() {
         this.running = false;
+        unwatchNetworks();
         try {
             CoreController coreController = this.core;
             if (coreController != null) {
@@ -511,6 +523,7 @@ public class GlobeVpnService extends VpnService {
 
     private void startAutopilot() {
         if (this.autopilotThread != null) return;
+        watchNetworks();
         Thread thread = new Thread(new Runnable() { // from class: com.globe.vpn.GlobeVpnService.4
             @Override // java.lang.Runnable
             public void run() {
@@ -522,21 +535,92 @@ public class GlobeVpnService extends VpnService {
         thread.start();
     }
 
+    // ждём 45 секунд или пробуждения от смены сети; true, если разбудила сеть
+    private boolean waitAutopilotTick() throws InterruptedException {
+        synchronized (autopilotLock) {
+            if (!networkWake) autopilotLock.wait(45000L);
+            boolean byNetwork = networkWake;
+            networkWake = false;
+            return byNetwork;
+        }
+    }
+
+    private void wakeAutopilot() {
+        // при регистрации система сразу присылает колбэки для уже активных сетей: их игнорируем
+        if (System.currentTimeMillis() < netGraceUntil) return;
+        synchronized (autopilotLock) {
+            networkWake = true;
+            autopilotLock.notifyAll();
+        }
+    }
+
+    private ConnectivityManager.NetworkCallback networkCallback() {
+        return new ConnectivityManager.NetworkCallback() {
+            @Override
+            public void onAvailable(Network network) {
+                wakeAutopilot();
+            }
+
+            @Override
+            public void onLost(Network network) {
+                wakeAutopilot();
+            }
+        };
+    }
+
+    // колбэки на Wi-Fi и мобильную сеть; снимаются в stopCore
+    private void watchNetworks() {
+        unwatchNetworks();
+        try {
+            ConnectivityManager cm = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
+            if (cm == null) return;
+            netGraceUntil = System.currentTimeMillis() + 2000L;
+            wifiCallback = networkCallback();
+            cellCallback = networkCallback();
+            cm.registerNetworkCallback(new NetworkRequest.Builder()
+                    .addTransportType(NetworkCapabilities.TRANSPORT_WIFI).build(), wifiCallback);
+            cm.registerNetworkCallback(new NetworkRequest.Builder()
+                    .addTransportType(NetworkCapabilities.TRANSPORT_CELLULAR).build(), cellCallback);
+        } catch (Throwable ignored) {
+        }
+    }
+
+    private void unwatchNetworks() {
+        try {
+            ConnectivityManager cm = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
+            if (cm != null && wifiCallback != null) cm.unregisterNetworkCallback(wifiCallback);
+            if (cm != null && cellCallback != null) cm.unregisterNetworkCallback(cellCallback);
+        } catch (Throwable ignored) {
+        }
+        wifiCallback = null;
+        cellCallback = null;
+    }
+
     // раз в 45 секунд проверяем текущий сервер; при отказе пробуем кандидатов группами по 3 параллельно
     private void autopilotLoop() {
         while (running) {
+            boolean byNetwork;
             try {
-                Thread.sleep(45000L);
+                byNetwork = waitAutopilotTick();
             } catch (InterruptedException error) {
                 return;
             }
             if (!running || !STATE_CONNECTED.equals(state)) continue;
             try {
+                if (byNetwork) {
+                    // сеть только что переключилась: даём ей устояться
+                    Thread.sleep(1200L);
+                    if (!running || !STATE_CONNECTED.equals(state)) continue;
+                }
                 JSONObject cfg = new JSONObject(getSharedPreferences("globe-vpn", 0).getString("autopilot", "{}"));
                 if (!cfg.optBoolean("enabled", false)) continue;
                 int timeout = cfg.optInt("timeoutMs", 4000);
                 String url = cfg.optString("probeUrl", "https://www.gstatic.com/generate_204");
-                if (probeMs(currentConfig, url, timeout) > 0) continue;
+                if (probeMs(currentConfig, url, timeout) > 0) {
+                    // сервер отвечает: на новой сети перезапускаем ядро с тем же конфигом
+                    if (byNetwork) switchConfig(currentConfig, activeName);
+                    continue;
+                }
                 JSONArray servers = cfg.optJSONArray("servers");
                 if (servers == null) continue;
                 for (int from = 0; from < servers.length() && running; from += 3) {
