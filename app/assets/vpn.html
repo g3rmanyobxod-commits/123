@@ -3139,7 +3139,7 @@ html[data-reduced="true"] .slider-knob { animation: none !important; transition-
 .head-actions { gap: 8px; }
 
 /* подписи городов не «уезжают» вместе с вращением карты */
-#markers.is-spinning .srv-label {
+#markers.is-spinning .srv:not(.is-selected) .srv-label {
   opacity: 0;
   visibility: hidden;
   transform: translate(-50%, -3px) scale(.96);
@@ -3506,6 +3506,13 @@ html { touch-action: manipulation; }
     visibility: hidden;
     pointer-events: none;
   }
+
+  /* v10: переключатель «По времени / По трафику» не выходит за карточку */
+  .stats-group .heat-mode { width: fit-content; max-width: calc(100% - 36px); }
+  .stats-group .heat-mode button { flex: 0 0 auto; }
+  @media (max-width: 380px) {
+    .stats-group .heat-mode button { padding: 5px 9px; font-size: 11px; }
+  }
 </style>
 <body data-view="home">
 
@@ -3539,8 +3546,8 @@ html { touch-action: manipulation; }
           <path d="M9.3 12.1l1.9 1.9 3.5-3.6" />
         </svg>
         <svg class="slider-icon slider-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M5 12h14" />
-          <path d="M13 6l6 6-6 6" />
+          <path d="M12 3.5l7 2.6v5.4c0 4.3-2.9 7.7-7 9-4.1-1.3-7-4.7-7-9V6.1l7-2.6z" />
+          <path d="M9.3 11.9l1.9 1.9 3.5-3.6" />
         </svg>
         <svg class="slider-icon slider-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true">
           <path d="M12 5v14M5 12h14" />
