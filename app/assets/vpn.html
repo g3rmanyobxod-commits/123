@@ -3453,7 +3453,7 @@ body[data-many="true"] .srv { transition: none; }
 .ctx-sep { height: 1px; margin: 4px 6px; background: var(--line); }
 
 /* подписка: раскрытое описание и трафик */
-.sub-info { padding: 4px 16px 12px 56px; font-family: var(--mono); font-size: 11.5px; line-height: 1.5; color: var(--muted); }
+.sub-info { padding: 4px 0 12px; font-family: var(--mono); font-size: 11.5px; line-height: 1.5; color: var(--muted); }
 .sub-info p { margin: 0 0 6px; white-space: normal; overflow-wrap: anywhere; }
 .sub-info .sub-traffic { color: var(--ink); }
 .sub-info .sub-stats { display: flex; align-items: center; gap: 10px; margin: 2px 0 0; padding: 9px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); color: var(--ink); font-variant-numeric: tabular-nums; }
@@ -5253,6 +5253,8 @@ window.GEO_CITIES = [
     const limit = filter.maxPing;
     // limit 0 — «Все»: пинг не скрывает серверы
     const dead = function (server) {
+      // выбранный сервер не скрывается порогом: к нему ведёт дуга
+      if (server.id === self.selectedId) return false;
       if (!limit) return false;
       const entry = latency[server.id];
       return !!entry && (entry.ms == null || (Number.isFinite(entry.ms) && entry.ms > limit));
@@ -5275,6 +5277,7 @@ window.GEO_CITIES = [
         });
         group.slice(1).forEach(function (server) { loser[server.id] = true; });
       });
+      delete loser[self.selectedId];
     }
     const hideMember = function (server) {
       const button = self.markers.get(server.id);
@@ -5309,7 +5312,7 @@ window.GEO_CITIES = [
     const labels = [];
     const shownGroups = {};
     (this.clusters || []).forEach(function (cluster) {
-      const alive = cluster.members.filter(function (server) {
+      let alive = cluster.members.filter(function (server) {
         const isDead = dead(server);
         const hidden = isDead || !!loser[server.id];
         const button = self.markers.get(server.id);
@@ -5326,6 +5329,17 @@ window.GEO_CITIES = [
         hideGroup(cluster.key);
         return;
       }
+      // выбранный сервер в кластере остаётся своим маркером: дуга заканчивается именно на нём
+      let own = null;
+      if (self.selectedId && alive.length > 1) {
+        own = alive.filter(function (s) { return s.id === self.selectedId; })[0] || null;
+      }
+      if (own) {
+        self.project(self.serverVec[own.id], p);
+        if (p.z > 0.015) showMember(own, p.x, p.y, p.z);
+        else hideMember(own);
+        alive = alive.filter(function (s) { return s !== own; });
+      }
       if (alive.length === 1) {
         const only = alive[0];
         self.project(self.serverVec[only.id], p);
@@ -5338,7 +5352,7 @@ window.GEO_CITIES = [
         return;
       }
       // несколько серверов рядом: один кружок в центре кластера
-      cluster.members.forEach(hideMember);
+      cluster.members.forEach(function (m) { if (!own || m !== own) hideMember(m); });
       self.project(cluster.vec, p);
       if (p.z <= 0.015) {
         hideGroup(cluster.key);
@@ -5655,7 +5669,9 @@ window.GEO_CITIES = [
     const view = [this.rotX, this.rotY, this.radius, this.arcProgress, this.width, this.height, this.cx, this.cy,
       this.dotSize, this.colors, this.connected, this.arcOn, this.selectedId, this.latency, this.servers,
       this.servers ? this.servers.length : 0, this.openGroup, this.count, this.points, many];
-    const same = !this.dirty && !this.arc && this._view && this._view.length === view.length
+    // дуга рисуется (и пульсирует) только при подключении — иначе кадр не меняется и перерисовывать не нужно
+    const liveArc = !!(this.arc && this.arcOn && this.connected);
+    const same = !this.dirty && !liveArc && this._view && this._view.length === view.length
       && view.every(function (v, i) { return v === this._view[i]; }, this);
     if (same) return;
     this._view = view;
