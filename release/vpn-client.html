@@ -3537,14 +3537,107 @@ html { touch-action: manipulation; }
 .stats-group .stats-day { grid-template-columns: minmax(0, 150px) minmax(0, 1fr) 84px; }
 
 /* v12: крестик отключения по центру кнопки, гаснет при зажатии */
+/* v13: центр пилюли 32px, центр кнопки 34px — крестик сдвинут на 2px влево и вверх */
+.slider[data-state="connected"] .slider-cross { margin: -14px 0 0 -14px; }
 .slider-cross { opacity: 0; transform: scale(.6); transition: opacity .3s ease, transform .3s ease; }
 .slider[data-state="connected"] .slider-cross { opacity: 1; transform: scale(1); }
 .slider.is-holding .slider-cross { opacity: 0; transform: scale(.6); }
 /* строка с городом под статусом убрана полностью */
 .path { display: none !important; }
 /* точка пользователя — зелёная */
-.origin-ring { border-color: #1E9E57; }
-.origin-dot { border-color: #1E9E57; background: #1E9E57; }
+/* v13: текст на слайдере убран полностью, остаётся только для экранных читалок */
+.conn-status, .conn-stats, .slider-label {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  margin: -1px !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+  clip: rect(0 0 0 0) !important;
+  clip-path: inset(50%) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+/* v13: раньше ширину колонки задавал текст статуса; теперь ширина задана явно.
+   310 px — ширина, до которой растягивается пилюля при удержании (замер v11); пилюля в покое 110 px, как прежде */
+.home-ui { width: 310px; }
+.slider:not([data-state="connected"]) { width: 110px; }
+/* v13: серая иконка включения пропадает, когда слайдер дотянут до конца */
+.slider-end { transition: opacity .3s ease, transform .3s ease; }
+.slider.is-at-end .slider-end { opacity: 0; transform: scale(.6); }
+/* v13: точка местоположения — маленькая, акцентная, пульс как у точки на обоях iPhone */
+.origin-ring, .origin-dot { width: 10px; height: 10px; margin: -5px; }
+.origin-dot {
+  border: 2px solid var(--paper);
+  background: var(--accent);
+  box-shadow: 0 1px 4px rgba(18, 20, 18, .28);
+  font-size: 0;
+}
+.origin-ring {
+  border: 1.5px solid var(--accent);
+  background: transparent;
+  opacity: 0;
+  animation: origin-wave13 2.4s cubic-bezier(.2, .6, .3, 1) infinite;
+}
+.origin-ring-2 { animation-delay: 1.2s; }
+@keyframes origin-wave13 {
+  0% { transform: scale(1); opacity: .65; }
+  100% { transform: scale(3.6); opacity: 0; }
+}
+html[data-reduced="true"] .origin-ring { animation: none; opacity: 0; }
+/* v13: сервер, который сейчас измеряется, становится полупрозрачным на 30% */
+.server-row { transition: background .16s ease, opacity .5s cubic-bezier(.3, .9, .26, 1); }
+.server-row.is-probing { opacity: .7; }
+.srv-flag { transition: transform .2s ease, box-shadow .2s ease, opacity .5s cubic-bezier(.3, .9, .26, 1); }
+.srv.is-probing .srv-flag { opacity: .7; }
+/* v13: настройки свернуты, раскрываются по нажатию */
+.set-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding: 16px 18px 14px;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font-family: var(--sans);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: .12em;
+  line-height: 1.2;
+  text-transform: uppercase;
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.set-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; border-radius: 12px; }
+.set-chevron {
+  flex: 0 0 auto;
+  width: 7px;
+  height: 7px;
+  border-right: 1.4px solid var(--muted);
+  border-bottom: 1.4px solid var(--muted);
+  transform: rotate(45deg) translateY(-2px);
+  transition: transform .25s ease;
+}
+.set-group.is-open .set-chevron { transform: rotate(225deg) translateY(-2px); }
+.set-body {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows .32s cubic-bezier(.32, .9, .28, 1);
+}
+.set-group.is-open .set-body { grid-template-rows: 1fr; }
+.set-inner {
+  min-height: 0;
+  overflow: hidden;
+  visibility: hidden;
+  transition: visibility .32s;
+}
+.set-group.is-open .set-inner { visibility: visible; }
+html[data-reduced="true"] .set-body, html[data-reduced="true"] .set-inner,
+html[data-reduced="true"] .set-chevron, html[data-reduced="true"] .server-row,
+html[data-reduced="true"] .srv-flag { transition: none; }
 /* строки серверов не выделяются при долгом нажатии */
 .server-row, .group-toggle { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 </style>
@@ -3909,8 +4002,13 @@ html { touch-action: manipulation; }
         </div>
       </header>
 
-      <section class="group">
-        <h2>Интерфейс</h2>
+      <section class="group set-group">
+        <button class="set-toggle" type="button" aria-expanded="false">
+          <span class="set-title">Интерфейс</span>
+          <span class="set-chevron" aria-hidden="true"></span>
+        </button>
+        <div class="set-body">
+          <div class="set-inner">
         <div class="row row-stack">
           <p class="row-label">Тема</p>
           <div class="segmented segmented-icons" role="group" aria-label="Тема интерфейса">
@@ -3946,10 +4044,17 @@ html { touch-action: manipulation; }
           </div>
           <button class="switch" type="button" role="switch" aria-checked="false" aria-label="Уменьшить движение" data-setting="reduced"><span></span></button>
         </div>
+                </div>
+        </div>
       </section>
 
-      <section class="group">
-        <h2>Карта</h2>
+      <section class="group set-group">
+        <button class="set-toggle" type="button" aria-expanded="false">
+          <span class="set-title">Карта</span>
+          <span class="set-chevron" aria-hidden="true"></span>
+        </button>
+        <div class="set-body">
+          <div class="set-inner">
         <div class="row">
           <div class="row-copy">
             <p class="row-label">Вращение</p>
@@ -3999,10 +4104,40 @@ html { touch-action: manipulation; }
             <button type="button" data-group="speed" data-value="2" aria-pressed="false">Быстро</button>
           </div>
         </div>
+        <div class="row row-stack">
+          <div class="row-copy">
+            <p class="row-label">Скрывать на карте, если пинг выше</p>
+            <p class="row-note">Серверы без ответа скрываются, пока порог задан. «Все» не скрывает ничего.</p>
+          </div>
+          <div class="segmented segmented-sm" role="group" aria-label="Порог пинга для карты">
+            <button type="button" data-group="mapMaxPing" data-value="0" aria-pressed="false">Все</button>
+            <button type="button" data-group="mapMaxPing" data-value="200" aria-pressed="true">200 мс</button>
+            <button type="button" data-group="mapMaxPing" data-value="300" aria-pressed="false">300 мс</button>
+            <button type="button" data-group="mapMaxPing" data-value="500" aria-pressed="false">500 мс</button>
+            <button type="button" data-group="mapMaxPing" data-value="1000" aria-pressed="false">1 с</button>
+          </div>
+        </div>
+        <div class="row row-stack">
+          <div class="row-copy">
+            <p class="row-label">Дубликаты на карте</p>
+            <p class="row-note">Серверы в одной точке. «Убирать» оставляет самый быстрый.</p>
+          </div>
+          <div class="segmented segmented-sm" role="group" aria-label="Дубликаты на карте">
+            <button type="button" data-group="mapDupes" data-value="keep" aria-pressed="true">Оставлять</button>
+            <button type="button" data-group="mapDupes" data-value="remove" aria-pressed="false">Убирать</button>
+          </div>
+        </div>
+                </div>
+        </div>
       </section>
 
-      <section class="group">
-        <h2>Соединение</h2>
+      <section class="group set-group">
+        <button class="set-toggle" type="button" aria-expanded="false">
+          <span class="set-title">Соединение</span>
+          <span class="set-chevron" aria-hidden="true"></span>
+        </button>
+        <div class="set-body">
+          <div class="set-inner">
         <div class="row">
           <div class="row-copy">
             <p class="row-label">Автоподключение</p>
@@ -4010,10 +4145,17 @@ html { touch-action: manipulation; }
           </div>
           <button class="switch" type="button" role="switch" aria-checked="false" aria-label="Автоподключение" data-setting="autoconnect"><span></span></button>
         </div>
+                </div>
+        </div>
       </section>
 
-      <section class="group">
-        <h2>Пинг</h2>
+      <section class="group set-group">
+        <button class="set-toggle" type="button" aria-expanded="false">
+          <span class="set-title">Пинг</span>
+          <span class="set-chevron" aria-hidden="true"></span>
+        </button>
+        <div class="set-body">
+          <div class="set-inner">
         <div class="row">
           <div class="row-copy">
             <p class="row-label">Мерить автоматически</p>
@@ -4051,10 +4193,17 @@ html { touch-action: manipulation; }
           </div>
           <button class="text-action" type="button" id="ping-now">Измерить</button>
         </div>
+                </div>
+        </div>
       </section>
 
-      <section class="group">
-        <h2>Данные</h2>
+      <section class="group set-group">
+        <button class="set-toggle" type="button" aria-expanded="false">
+          <span class="set-title">Данные</span>
+          <span class="set-chevron" aria-hidden="true"></span>
+        </button>
+        <div class="set-body">
+          <div class="set-inner">
         <div class="row">
           <div class="row-copy">
             <p class="row-label">Резервная копия</p>
@@ -4066,10 +4215,17 @@ html { touch-action: manipulation; }
           </div>
         </div>
         <p class="settings-note">Серверы и подписки хранятся только на этом устройстве. Клиент поднимает интерфейс и управление серверами; сам туннель подключается ядром (VLESS / Trojan / Hysteria2), которое ставится отдельно в сборку.</p>
+                </div>
+        </div>
       </section>
 
-      <section class="group" id="bypass-group">
-        <h2>Обход приложений</h2>
+      <section class="group set-group" id="bypass-group">
+        <button class="set-toggle" type="button" aria-expanded="false">
+          <span class="set-title">Обход приложений</span>
+          <span class="set-chevron" aria-hidden="true"></span>
+        </button>
+        <div class="set-body">
+          <div class="set-inner">
         <div class="row">
           <div class="row-copy">
             <p class="row-label">Российские сайты напрямую</p>
@@ -4088,6 +4244,8 @@ html { touch-action: manipulation; }
           </div>
           <input class="bypass-search" id="bypass-search" type="search" placeholder="Поиск приложения" aria-label="Поиск приложения">
           <div class="bypass-list" id="bypass-list"></div>
+        </div>
+                </div>
         </div>
       </section>
 
@@ -4426,6 +4584,10 @@ window.GEO_CITIES = [
     return new Float32Array(bytes.buffer);
   }
 
+  // серверы, которые сейчас измеряются (общая для карты и списка)
+  window.__probingIds = window.__probingIds || {};
+  const probingIds = window.__probingIds;
+
   function DotGlobe(options) {
     const opts = options || {};
     this.canvas = typeof opts.canvas === 'string' ? document.querySelector(opts.canvas) : opts.canvas;
@@ -4638,6 +4800,7 @@ window.GEO_CITIES = [
     button.type = 'button';
     button.className = 'srv';
     button.dataset.id = server.id;
+    if (probingIds[server.id]) button.classList.add('is-probing');
     const aria = [server.city];
     if (server.country) aria.push(server.country);
     if (server.protocol) aria.push(server.protocol);
@@ -4661,6 +4824,11 @@ window.GEO_CITIES = [
 
     self.layer.appendChild(button);
     self.markers.set(server.id, button);
+  };
+
+  DotGlobe.prototype.setMapFilter = function (filter) {
+    this.mapFilter = filter || null;
+    this.clustersDirty = true;
   };
 
   DotGlobe.prototype.setLatency = function (map) {
@@ -4769,7 +4937,10 @@ window.GEO_CITIES = [
     originRing.className = 'origin-ring';
     const originDot = document.createElement('span');
     originDot.className = 'origin-dot';
+    const originRing2 = document.createElement('span');
+    originRing2.className = 'origin-ring origin-ring-2';
     this.originEl.appendChild(originRing);
+    this.originEl.appendChild(originRing2);
     this.originEl.appendChild(originDot);
     this.layer.appendChild(this.originEl);
     this.originVec = latLng(this.origin.lat, this.origin.lng, 1.007);
@@ -5051,10 +5222,33 @@ window.GEO_CITIES = [
         el.style.visibility = value;
       }
     };
+    const filter = self.mapFilter || { maxPing: 200, dupes: 'keep' };
+    const limit = filter.maxPing;
+    // limit 0 — «Все»: пинг не скрывает серверы
     const dead = function (server) {
+      if (!limit) return false;
       const entry = latency[server.id];
-      return !!entry && (entry.ms == null || (Number.isFinite(entry.ms) && entry.ms > 200));
+      return !!entry && (entry.ms == null || (Number.isFinite(entry.ms) && entry.ms > limit));
     };
+    // дубликаты — серверы в одной точке; при «Убирать» остаётся самый быстрый
+    const loser = {};
+    if (filter.dupes === 'remove') {
+      const places = {};
+      this.servers.forEach(function (server) {
+        if (dead(server)) return;
+        const key = Number(server.lat).toFixed(4) + ',' + Number(server.lng).toFixed(4);
+        (places[key] = places[key] || []).push(server);
+      });
+      Object.keys(places).forEach(function (key) {
+        const group = places[key].slice().sort(function (a, b) {
+          const ma = latency[a.id] && Number.isFinite(latency[a.id].ms) ? latency[a.id].ms : Infinity;
+          const mb = latency[b.id] && Number.isFinite(latency[b.id].ms) ? latency[b.id].ms : Infinity;
+          if (ma !== mb) return ma < mb ? -1 : 1;
+          return String(a.id) < String(b.id) ? -1 : 1;
+        });
+        group.slice(1).forEach(function (server) { loser[server.id] = true; });
+      });
+    }
     const hideMember = function (server) {
       const button = self.markers.get(server.id);
       if (!button) return;
@@ -5090,12 +5284,13 @@ window.GEO_CITIES = [
     (this.clusters || []).forEach(function (cluster) {
       const alive = cluster.members.filter(function (server) {
         const isDead = dead(server);
+        const hidden = isDead || !!loser[server.id];
         const button = self.markers.get(server.id);
         if (button) {
           button.classList.toggle('is-offline', isDead);
-          button.classList.toggle('is-hidden-map', isDead);
+          button.classList.toggle('is-hidden-map', hidden);
         }
-        return !isDead;
+        return !hidden;
       });
       cluster.members.forEach(function (server) {
         if (alive.indexOf(server) === -1) hideMember(server);
@@ -15701,7 +15896,9 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
       autoconnect: raw.autoconnect === true,
       pingOne: raw.pingOne === true,
       pingEvery: [60, 300, 900].indexOf(Number(raw.pingEvery)) !== -1 ? Number(raw.pingEvery) : 60,
-      pingTimeout: [1200, 2500, 4000].indexOf(Number(raw.pingTimeout)) !== -1 ? Number(raw.pingTimeout) : 2500
+      pingTimeout: [1200, 2500, 4000].indexOf(Number(raw.pingTimeout)) !== -1 ? Number(raw.pingTimeout) : 2500,
+      mapMaxPing: [0, 200, 300, 500, 1000].indexOf(Number(raw.mapMaxPing)) !== -1 && raw.mapMaxPing != null ? Number(raw.mapMaxPing) : 200,
+      mapDupes: raw.mapDupes === 'remove' ? 'remove' : 'keep'
     };
   }
 
@@ -15721,6 +15918,27 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
   };
 
   const native = (window.Native && typeof window.Native.ping === 'function') ? window.Native : null;
+
+  // серверы, которые сейчас измеряются: строка и маркер становятся на 30% прозрачнее
+  const probingIds = window.__probingIds;
+  let probingTimer = 0;
+  function paintProbing() {
+    document.querySelectorAll('.server-row[data-id], .srv[data-id]').forEach(function (el) {
+      el.classList.toggle('is-probing', !!probingIds[el.dataset.id]);
+    });
+  }
+  function markProbing(ids) {
+    (ids || []).forEach(function (id) { probingIds[id] = true; });
+    window.clearTimeout(probingTimer);
+    // страховка: если ответ не пришёл, состояние снимается через 30 с
+    probingTimer = window.setTimeout(clearAllProbing, 30000);
+    paintProbing();
+  }
+  function clearAllProbing() {
+    window.clearTimeout(probingTimer);
+    Object.keys(probingIds).forEach(function (id) { delete probingIds[id]; });
+    paintProbing();
+  }
 
   function haptic() {
     if (!settings.haptic) return;
@@ -16311,7 +16529,9 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
       flags: settings.flags,
       uiScale: settings.uiScale,
       speed: settings.speed,
-      autoconnect: settings.autoconnect
+      autoconnect: settings.autoconnect,
+      mapMaxPing: settings.mapMaxPing,
+      mapDupes: settings.mapDupes
     });
     store.write('vpn.theme', settings.themeMode);
     store.write('vpn.customAccents', settings.customAccents);
@@ -16572,6 +16792,7 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
       }
     }
   });
+  globe.setMapFilter({ maxPing: settings.mapMaxPing, dupes: settings.mapDupes });
 
   // тап по точке на карте — сразу подключаемся
   globe.onPick = function (server) {
@@ -16634,6 +16855,7 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
       globe.setReduced(settings.reduced);
     }
     if (name === 'dots') globe.setDotScale(settings.dots);
+    if (name === 'mapMaxPing' || name === 'mapDupes') globe.setMapFilter({ maxPing: settings.mapMaxPing, dupes: settings.mapDupes });
     if (name === 'speed') globe.setSpin(settings.speed);
     if (name === 'flags') root.style.setProperty('--flag-scale', String(settings.flags));
     if (name === 'uiScale') root.style.zoom = String(settings.uiScale);
@@ -16652,7 +16874,7 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
     });
     $$('[data-group]', ui.settingsScreen).forEach(function (button) {
       const group = button.dataset.group;
-      button.setAttribute('aria-pressed', String(settings[group] === Number(button.dataset.value)));
+      button.setAttribute('aria-pressed', String(String(settings[group]) === button.dataset.value));
     });
     $$('[data-theme-value]', ui.settingsScreen).forEach(function (button) {
       button.setAttribute('aria-pressed', String(button.dataset.themeValue === settings.themeMode));
@@ -17703,6 +17925,7 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
     if (!server.host || !server.port) return;
     try {
       native.ping(JSON.stringify([{ id: server.id, host: server.host, port: server.port, timeout: settings.pingTimeout }]));
+      markProbing([server.id]);
     } catch (error) { /* нет моста — останется «—» */ }
   }
 
@@ -17723,6 +17946,7 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
     }
     try {
       native.ping(JSON.stringify(list));
+      markProbing(list.map(function (server) { return server.id; }));
     } catch (error) {
       if (ui.pingAll) {
         ui.pingAll.disabled = false;
@@ -17735,9 +17959,11 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
     let rows = [];
     try { rows = JSON.parse(payload); } catch (error) { rows = []; }
     if (!Array.isArray(rows)) rows = [];
+    clearAllProbing();
     rows.forEach(function (row) {
       if (!row || !row.id) return;
-      const ms = Number(row.ms);
+      const ms = row.ms == null ? NaN : Number(row.ms);
+      // ms: null — нет ответа; Number(null) дал бы 0 мс и скрыл бы такой сервер от порога
       state.latency[row.id] = { ms: Number.isFinite(ms) ? ms : null };
     });
     state.latencyAt = Date.now();
@@ -17972,6 +18198,7 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
     row.type = 'button';
     row.className = 'server-row' + (server.id === state.selectedId ? ' is-selected' : '');
     row.dataset.id = server.id;
+    if (probingIds[server.id]) row.classList.add('is-probing');
     if (server.id === state.selectedId) row.setAttribute('aria-current', 'true');
     const aria = ['Выбрать сервер: ' + server.city];
     if (server.country) aria.push(server.country);
@@ -18603,6 +18830,7 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
   let infoOpen = false;
 
   function resetPingButtons() {
+    clearAllProbing();
     if (ui.pingAll) { ui.pingAll.disabled = false; ui.pingAll.classList.remove('is-busy'); }
     pendingPingButtons.splice(0).forEach(function (button) {
       button.disabled = false;
@@ -18627,6 +18855,7 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
     }
     try {
       native.ping(JSON.stringify(rows));
+      markProbing(rows.map(function (row) { return row.id; }));
     } catch (error) {
       resetPingButtons();
     }
@@ -20026,11 +20255,22 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
   $$('[data-group]', ui.settingsScreen).forEach(function (button) {
     button.addEventListener('click', function () {
       const group = button.dataset.group;
-      settings[group] = Number(button.dataset.value);
+      const raw = button.dataset.value;
+      settings[group] = (raw === 'keep' || raw === 'remove') ? raw : Number(raw);
       applySetting(group);
       syncSettings();
       persist();
     });
+  });
+
+  document.addEventListener('click', function (event) {
+    const toggle = event.target.closest ? event.target.closest('.set-toggle') : null;
+    if (!toggle) return;
+    const section = toggle.closest('.set-group');
+    if (!section) return;
+    const open = !section.classList.contains('is-open');
+    section.classList.toggle('is-open', open);
+    toggle.setAttribute('aria-expanded', String(open));
   });
 
   $('#path-to').addEventListener('click', function () {
