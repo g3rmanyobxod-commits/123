@@ -20,6 +20,8 @@ import go.Seq;
 import libv2ray.CoreCallbackHandler;
 import libv2ray.CoreController;
 import libv2ray.Libv2ray;
+import java.util.ArrayList;
+import java.util.List;
 
 /* loaded from: classes.dex */
 public class GlobeVpnService extends VpnService {
@@ -538,7 +540,7 @@ public class GlobeVpnService extends VpnService {
     // ждём 45 секунд или пробуждения от смены сети; true, если разбудила сеть
     private boolean waitAutopilotTick() throws InterruptedException {
         synchronized (autopilotLock) {
-            if (!networkWake) autopilotLock.wait(45000L);
+            if (!networkWake) autopilotLock.wait(60000L);
             boolean byNetwork = networkWake;
             networkWake = false;
             return byNetwork;
@@ -596,7 +598,103 @@ public class GlobeVpnService extends VpnService {
         cellCallback = null;
     }
 
-    // раз в 45 секунд проверяем текущий сервер; при отказе пробуем кандидатов группами по 3 параллельно
+    // v12: раз в минуту оцениваем серверы по задержке на запрещённых сервисах и берём самый быстрый.
+    // Wi-Fi — серверы без пометки «белые списки», мобильная сеть — с пометкой (поле wl в конфиге автопилота)
+    private static final int AP_ROUND = 12;
+    private static final int AP_BATCH = 4;
+    private static final double AP_SWITCH_RATIO = 0.8;
+    private volatile int apCursor = 0;
+
+    private static final class ApCandidate {
+        final String config;
+        final String name;
+        final boolean wl;
+        double score = -1;
+
+        ApCandidate(String config, String name, boolean wl) {
+            this.config = config;
+            this.name = name;
+            this.wl = wl;
+        }
+    }
+
+    // тип сети: wifi / cell / other; VPN-сеть и сети без интернета пропускаем
+    static String networkKind(Context context) {
+        try {
+            ConnectivityManager cm = (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
+            if (cm == null) return "other";
+            boolean wifi = false;
+            boolean cell = false;
+            for (Network network : cm.getAllNetworks()) {
+                NetworkCapabilities caps = cm.getNetworkCapabilities(network);
+                if (caps == null || caps.hasTransport(NetworkCapabilities.TRANSPORT_VPN)) continue;
+                if (!caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)) continue;
+                if (caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)) wifi = true;
+                else if (caps.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)) cell = true;
+            }
+            if (wifi) return "wifi";
+            if (cell) return "cell";
+        } catch (Throwable ignored) {
+        }
+        return "other";
+    }
+
+    private static boolean fitsNetwork(String kind, boolean wl) {
+        if ("wifi".equals(kind)) return !wl;
+        if ("cell".equals(kind)) return wl;
+        return true;
+    }
+
+    private static String[] probeUrlsOf(JSONObject cfg) {
+        List<String> urls = new ArrayList<>();
+        JSONArray list = cfg.optJSONArray("probeUrls");
+        if (list != null) {
+            for (int i = 0; i < list.length(); i += 1) {
+                String url = list.optString(i, "");
+                if (!url.isEmpty()) urls.add(url);
+            }
+        }
+        if (urls.isEmpty()) urls.add("https://www.gstatic.com/generate_204");
+        return urls.toArray(new String[0]);
+    }
+
+    // задержка по всем адресам: любой сбой — сервер не годится (-1), иначе среднее
+    private double scoreConfig(String config, String[] urls, int timeoutMs) {
+        double sum = 0;
+        for (String url : urls) {
+            long ms = probeMs(config, url, timeoutMs);
+            if (ms <= 0) return -1;
+            sum += ms;
+        }
+        return urls.length == 0 ? -1 : sum / urls.length;
+    }
+
+    private void scoreAll(List<ApCandidate> list, final String[] urls, final int timeoutMs) {
+        for (int from = 0; from < list.size() && running; from += AP_BATCH) {
+            int to = Math.min(list.size(), from + AP_BATCH);
+            Thread[] workers = new Thread[to - from];
+            for (int k = from; k < to; k += 1) {
+                final ApCandidate candidate = list.get(k);
+                Thread worker = new Thread(new Runnable() {
+                    @Override
+                    public void run() {
+                        candidate.score = scoreConfig(candidate.config, urls, timeoutMs);
+                    }
+                }, "globe-autopilot-score");
+                worker.setDaemon(true);
+                workers[k - from] = worker;
+                worker.start();
+            }
+            for (Thread worker : workers) {
+                try {
+                    worker.join(timeoutMs * (long) urls.length + 6000L);
+                } catch (InterruptedException error) {
+                    return;
+                }
+            }
+        }
+    }
+
     private void autopilotLoop() {
         while (running) {
             boolean byNetwork;
@@ -614,62 +712,67 @@ public class GlobeVpnService extends VpnService {
                 }
                 JSONObject cfg = new JSONObject(getSharedPreferences("globe-vpn", 0).getString("autopilot", "{}"));
                 if (!cfg.optBoolean("enabled", false)) continue;
-                int timeout = cfg.optInt("timeoutMs", 4000);
-                String url = cfg.optString("probeUrl", "https://www.gstatic.com/generate_204");
-                if (probeMs(currentConfig, url, timeout) > 0) {
-                    // сервер отвечает: на новой сети перезапускаем ядро с тем же конфигом
-                    if (byNetwork) switchConfig(currentConfig, activeName);
-                    continue;
-                }
                 JSONArray servers = cfg.optJSONArray("servers");
                 if (servers == null) continue;
-                for (int from = 0; from < servers.length() && running; from += 3) {
-                    int to = Math.min(servers.length(), from + 3);
-                    int size = to - from;
-                    final String[] candidates = new String[size];
-                    final String[] names = new String[size];
-                    final long[] delays = new long[size];
-                    Thread[] workers = new Thread[size];
-                    for (int k = 0; k < size; k += 1) {
-                        JSONObject server = servers.optJSONObject(from + k);
-                        if (server == null || server.optJSONObject("config") == null) continue;
-                        String candidate = canonical(server.optJSONObject("config").toString());
-                        if (candidate.equals(currentConfig)) continue;
-                        candidates[k] = candidate;
-                        names[k] = server.optString("name", "");
-                        final int slot = k;
-                        final String probeConfig = candidate;
-                        final String probeUrl = url;
-                        final int probeTimeout = timeout;
-                        workers[k] = new Thread(new Runnable() { // from class: com.globe.vpn.GlobeVpnService.7
-                            @Override // java.lang.Runnable
-                            public void run() {
-                                delays[slot] = probeMs(probeConfig, probeUrl, probeTimeout);
-                            }
-                        }, "globe-autopilot-batch");
-                        workers[k].setDaemon(true);
-                        workers[k].start();
-                    }
-                    for (Thread worker : workers) {
-                        if (worker == null) continue;
-                        try {
-                            worker.join(timeout + 4000L);
-                        } catch (InterruptedException error) {
-                            return;
-                        }
-                    }
-                    int winner = -1;
-                    for (int k = 0; k < size; k += 1) {
-                        if (candidates[k] != null && delays[k] > 0) {
-                            winner = k;
-                            break;
-                        }
-                    }
-                    if (winner >= 0) {
-                        switchConfig(candidates[winner], names[winner]);
+                int timeout = cfg.optInt("timeoutMs", 4000);
+                final String[] urls = probeUrlsOf(cfg);
+                String kind = networkKind(this);
+
+                List<ApCandidate> all = new ArrayList<>();
+                for (int i = 0; i < servers.length(); i += 1) {
+                    JSONObject server = servers.optJSONObject(i);
+                    if (server == null || server.optJSONObject("config") == null) continue;
+                    all.add(new ApCandidate(canonical(server.optJSONObject("config").toString()),
+                            server.optString("name", ""), server.optBoolean("wl", false)));
+                }
+                ApCandidate current = null;
+                for (ApCandidate c : all) {
+                    if (c.config.equals(currentConfig)) {
+                        current = c;
                         break;
                     }
                 }
+                if (current == null) current = new ApCandidate(currentConfig, activeName, false);
+                boolean currentFits = fitsNetwork(kind, current.wl);
+
+                List<ApCandidate> pool = new ArrayList<>();
+                for (ApCandidate c : all) {
+                    if (c.config.equals(currentConfig) || !fitsNetwork(kind, c.wl)) continue;
+                    pool.add(c);
+                }
+                if (pool.isEmpty()) {
+                    // подходящих по сети нет — берём любые, чтобы не остаться без сервера
+                    for (ApCandidate c : all) {
+                        if (!c.config.equals(currentConfig)) pool.add(c);
+                    }
+                }
+                List<ApCandidate> round = new ArrayList<>();
+                if (currentFits) round.add(current);
+                if (!pool.isEmpty()) {
+                    int start = apCursor % pool.size();
+                    int take = Math.min(AP_ROUND, pool.size());
+                    for (int i = 0; i < take; i += 1) {
+                        round.add(pool.get((start + i) % pool.size()));
+                    }
+                    apCursor = (start + take) % pool.size();
+                }
+                if (round.isEmpty()) continue;
+                scoreAll(round, urls, timeout);
+
+                ApCandidate best = null;
+                for (ApCandidate c : round) {
+                    if (c.score > 0 && (best == null || c.score < best.score)) best = c;
+                }
+                double curScore = currentFits ? current.score : -1;
+                if (byNetwork) {
+                    // смена сети: перезапускаем ядро на лучшем (или на текущем, если он ещё отвечает)
+                    ApCandidate pick = best != null ? best : (curScore > 0 ? current : null);
+                    if (pick != null) switchConfig(pick.config, pick.name);
+                    continue;
+                }
+                if (best == null || best == current) continue;
+                if (curScore > 0 && best.score >= curScore * AP_SWITCH_RATIO) continue;
+                switchConfig(best.config, best.name);
             } catch (Throwable ignored) {
             }
         }

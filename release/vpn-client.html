@@ -3463,7 +3463,6 @@ html { touch-action: manipulation; }
   .path-from, .path-line { display: none; }
   .path { grid-template-columns: minmax(0, 1fr); justify-items: center; }
   /* v9: иконка подключения у конца слайдера прячется, когда ползунок дотянут до конца */
-  .slider.is-at-end .slider-end { opacity: 0; }
   /* v9: линия трафика в шапке подписки */
   .group-copy .traffic-bar { display: block; width: 100%; height: 3px; margin: 6px 0 0; }
   /* v9: автопилот — стекло как у нижней панели; выезжает из-под неё вправо и уходит под неё влево */
@@ -3528,12 +3527,26 @@ html { touch-action: manipulation; }
   word-break: normal;
   line-height: 1.2;
 }
-/* бесплатная группа: при нехватке ширины кнопки переносятся на свою строку, слова не режутся */
-.group-head.is-free { flex-wrap: wrap; row-gap: 6px; }
-.group-head.is-free > .group-tools { margin-left: auto; }
+/* бесплатная группа: название переносится по словам, кнопки остаются в одной строке */
+.group-head.is-free .group-toggle { min-width: 0; flex: 1 1 auto; }
+.group-head.is-free .group-toggle > *:not(.group-copy) { flex-shrink: 0; }
+.group-head.is-free .group-copy { min-width: 0; }
+.group-head.is-free > .group-tools { flex: 0 0 auto; }
 /* v11: адаптивность — сегменты не обрезают текст (ряд прокручивается), строка статистики сжимает название */
 .segmented button { min-width: max-content; }
 .stats-group .stats-day { grid-template-columns: minmax(0, 150px) minmax(0, 1fr) 84px; }
+
+/* v12: крестик отключения по центру кнопки, гаснет при зажатии */
+.slider-cross { opacity: 0; transform: scale(.6); transition: opacity .3s ease, transform .3s ease; }
+.slider[data-state="connected"] .slider-cross { opacity: 1; transform: scale(1); }
+.slider.is-holding .slider-cross { opacity: 0; transform: scale(.6); }
+/* строка с городом под статусом убрана полностью */
+.path { display: none !important; }
+/* точка пользователя — зелёная */
+.origin-ring { border-color: #1E9E57; }
+.origin-dot { border-color: #1E9E57; background: #1E9E57; }
+/* строки серверов не выделяются при долгом нажатии */
+.server-row, .group-toggle { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 </style>
 <body data-view="home">
 
@@ -3567,8 +3580,11 @@ html { touch-action: manipulation; }
           <path d="M9.3 12.1l1.9 1.9 3.5-3.6" />
         </svg>
         <svg class="slider-icon slider-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M12 3.5l7 2.6v5.4c0 4.3-2.9 7.7-7 9-4.1-1.3-7-4.7-7-9V6.1l7-2.6z" />
-          <path d="M9.3 11.9l1.9 1.9 3.5-3.6" />
+          <path d="M5 12h14" />
+          <path d="M13 6l6 6-6 6" />
+        </svg>
+        <svg class="slider-icon slider-cross" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
+          <path d="M7.5 7.5l9 9M16.5 7.5l-9 9" />
         </svg>
         <svg class="slider-icon slider-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true">
           <path d="M12 5v14M5 12h14" />
@@ -4632,12 +4648,6 @@ window.GEO_CITIES = [
     badge.textContent = server.flag || (server.code ? String(server.code).toUpperCase() : '··');
     badge.setAttribute('aria-hidden', 'true');
     button.appendChild(badge);
-
-    const label = document.createElement('span');
-    label.className = 'srv-label';
-    label.textContent = server.city || server.host || '';
-    label.setAttribute('aria-hidden', 'true');
-    button.appendChild(label);
 
     button.addEventListener('click', function (event) {
       event.stopPropagation();
@@ -16777,8 +16787,8 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
     slider.label = ui.sliderLabel;
     slider.armed = false;
 
-    // отключение: кнопку нужно зажать ~900 мс; пилюля растягивается до ширины слайдера, ручка немного растёт
-    const HOLD_MS = 900;
+    // отключение: кнопку нужно зажать ~500 мс; пилюля растягивается до ширины слайдера, ручка немного растёт
+    const HOLD_MS = 500;
     const HOLD_HINT = 'Зажмите кнопку, чтобы отключить VPN';
     function holdFrame() {
       const hold = slider.hold;
@@ -18040,6 +18050,8 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
         timer = 0;
         fired = true;
         haptic();
+        const selection = window.getSelection ? window.getSelection() : null;
+        if (selection) selection.removeAllRanges();
         onHold();
       }, 460);
     });
@@ -18050,6 +18062,8 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
     ['pointerup', 'pointercancel', 'pointerleave'].forEach(function (name) {
       row.addEventListener(name, clear);
     });
+    row.addEventListener('selectstart', function (event) { event.preventDefault(); });
+    row.addEventListener('contextmenu', function (event) { event.preventDefault(); });
     row.addEventListener('click', function (event) {
       if (fired) {
         fired = false;
@@ -18581,6 +18595,8 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
   const ICON_TUNE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg>';
   const ICON_EDIT = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/></svg>';
   const AP_PROBE_URL = 'https://www.gstatic.com/generate_204';
+  // запрещённые сервисы: по ним оцениваем скорость сервера
+  const AP_PROBE_URLS = ['https://www.youtube.com/generate_204', 'https://telegram.org/'];
   const pendingProbes = {};
   const pendingPingButtons = [];
   let ctxMenuEl = null;
@@ -18981,6 +18997,7 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
       { label: 'Конфиг', icon: ICON_CONFIG, run: function () { openServerConfig(id); } },
       { label: 'Поделиться', icon: ICON_SHARE, run: function () { shareServer(id); } },
       { label: 'Настроить', icon: ICON_TUNE, run: function () { openServerSettings(id); } },
+      { label: 'Пинг', icon: PING_SVG, run: function () { pingServers([server]); } },
       '-',
       { label: 'Переименовать', icon: ICON_EDIT, run: function () { openServerRename(id); } }
     ]);
@@ -19075,7 +19092,7 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
   }
 
   // ── v6: автопилот ─────────────────────────────────────────────────────
-  const AP = { busy: false, mode: 'unknown', modeAt: 0 };
+  const AP = { busy: false, mode: 'unknown', modeAt: 0, cursor: 0 };
 
   function apOn() {
     return store.read('vpn.autopilot', false) === true;
@@ -19086,7 +19103,7 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
     if (button) button.setAttribute('aria-pressed', String(apOn()));
   }
 
-  function probeServerNative(server, timeoutMs) {
+  function probeServerNative(server, timeoutMs, url) {
     return new Promise(function (resolve) {
       const built = buildXrayConfig(server);
       if (!native || typeof native.probe !== 'function' || !built.ok) {
@@ -19103,7 +19120,7 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
         resolve(ms);
       };
       try {
-        native.probe(key, JSON.stringify(built.config), AP_PROBE_URL, timeoutMs);
+        native.probe(key, JSON.stringify(built.config), url || AP_PROBE_URL, timeoutMs);
       } catch (error) {
         window.clearTimeout(timer);
         delete pendingProbes[key];
@@ -19120,24 +19137,35 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
     done(Number.isFinite(value) && value > 0 ? value : -1);
   };
 
-  // белые списки: российские адреса открываются, зарубежные — нет
-    // белые списки: российские адреса открываются, зарубежные нет; все запросы параллельно
-  async function apDetectWhitelist() {
-    if (!native || typeof native.fetchText !== 'function') return 'unknown';
-    const probe = function (url) {
-      return Promise.race([
-        nativeFetch(url).then(function () { return true; }, function () { return false; }),
-        new Promise(function (resolve) { window.setTimeout(function () { resolve(false); }, 4000); })
-      ]);
-    };
-    const results = await Promise.all([
-      probe('https://ya.ru/'),
-      probe('https://vk.com/'),
-      probe(AP_PROBE_URL),
-      probe('https://cp.cloudflare.com/generate_204')
-    ]);
-    if (results[2] || results[3]) return 'open';
-    return results[0] || results[1] ? 'whitelist' : 'offline';
+  const AP_TIMEOUT = 4000;
+  const AP_ROUND = 12;
+  const AP_BATCH = 4;
+  const AP_SWITCH_RATIO = 0.8;
+  const AP_INTERVAL_MS = 60000;
+
+  // сервер «для белых списков»: пометка в названии, подписке или в комментарии ссылки (#...)
+  function apIsWhitelist(server) {
+    let remark = '';
+    const link = String(server.link || '');
+    const hash = link.indexOf('#');
+    if (hash !== -1) {
+      try { remark = decodeURIComponent(link.slice(hash + 1)); } catch (error) { remark = ''; }
+    }
+    return /белы|white\s*list|whitelist|\bwl\b|вайт/i.test([server.city, server.subName, remark].join(' '));
+  }
+
+  // тип сети: wifi / cell / other (нативный слой)
+  function apNetworkKind() {
+    if (!native || typeof native.networkKind !== 'function') return 'other';
+    try { return String(native.networkKind() || 'other'); } catch (error) { return 'other'; }
+  }
+
+  // Wi-Fi — серверы без пометки «белые списки», мобильная сеть — с пометкой
+  function apFits(kind, server) {
+    const wl = apIsWhitelist(server);
+    if (kind === 'wifi') return !wl;
+    if (kind === 'cell') return wl;
+    return true;
   }
 
   function apCandidates(currentId) {
@@ -19149,7 +19177,7 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
       const lb = state.latency[b.id] && Number.isFinite(state.latency[b.id].ms) ? state.latency[b.id].ms : 1e9;
       return la - lb;
     });
-    return list.slice(0, 12);
+    return list.slice(0, 40);
   }
 
   // передаём кандидатов в нативный слой: фоновая проверка и переключение без открытого приложения
@@ -19157,36 +19185,33 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
     if (!native || typeof native.setAutopilot !== 'function') return;
     const payload = {
       enabled: apOn(),
-      intervalSec: 45,
+      intervalSec: AP_INTERVAL_MS / 1000,
       probeUrl: AP_PROBE_URL,
-      timeoutMs: 4000,
+      probeUrls: AP_PROBE_URLS,
+      timeoutMs: AP_TIMEOUT,
       servers: []
     };
     if (payload.enabled) {
       list.forEach(function (server) {
         const built = buildXrayConfig(server);
-        if (built.ok) payload.servers.push({ id: server.id, name: server.city, config: built.config });
+        if (built.ok) payload.servers.push({ id: server.id, name: server.city, wl: apIsWhitelist(server), config: built.config });
       });
     }
     try { native.setAutopilot(JSON.stringify(payload)); } catch (error) { /* мост недоступен */ }
   }
 
-    const AP_TIMEOUT = 3000;
-
-  // серверы проверяем группами по 3 параллельно; берём первый рабочий по порядку списка
-  async function apProbeFirst(list) {
-    for (let i = 0; i < list.length; i += 3) {
-      const batch = list.slice(i, i + 3);
-      const results = await Promise.all(batch.map(function (server) {
-        return probeServerNative(server, AP_TIMEOUT);
-      }));
-      for (let k = 0; k < results.length; k += 1) {
-        if (results[k] > 0) return { server: batch[k], ms: results[k] };
-      }
+  // задержка по всем запрещённым сервисам: любой сбой — сервер не годится, иначе среднее
+  async function apScore(server) {
+    let sum = 0;
+    for (const url of AP_PROBE_URLS) {
+      const ms = await probeServerNative(server, AP_TIMEOUT, url);
+      if (!(ms > 0)) return -1;
+      sum += ms;
     }
-    return null;
+    return sum / AP_PROBE_URLS.length;
   }
 
+  // раунд: текущий сервер (если подходит сети) и до AP_ROUND других по кругу; выбираем самый быстрый
   async function apRun(reason) {
     if (AP.busy || !apOn()) return;
     if (!native || typeof native.probe !== 'function') {
@@ -19196,33 +19221,43 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
     AP.busy = true;
     try {
       const current = selectedServer();
-      if (reason === 'tick' && current) {
-        const ok = await probeServerNative(current, AP_TIMEOUT);
-        if (ok > 0) return;
-      }
-      // белые списки определяем не чаще раза в 10 минут и только без VPN
-      if (vpnStateName() !== 'connected' && Date.now() - AP.modeAt > 600000) {
-        AP.mode = await apDetectWhitelist();
-        AP.modeAt = Date.now();
-      }
+      const kind = apNetworkKind();
       const all = apCandidates(current ? current.id : '');
-      const list = reason === 'tick' && current
-        ? all.filter(function (server) { return server.id !== current.id; })
-        : all;
-      const chosen = await apProbeFirst(list);
-      if (!chosen) {
+      const others = all.filter(function (server) { return !current || server.id !== current.id; });
+      const pool = others.filter(function (server) { return apFits(kind, server); });
+      const base = pool.length ? pool : others;
+      const currentFits = !!current && apFits(kind, current);
+      const start = base.length ? AP.cursor % base.length : 0;
+      const rotated = [];
+      for (let i = 0; i < base.length && rotated.length < AP_ROUND; i += 1) rotated.push(base[(start + i) % base.length]);
+      if (base.length) AP.cursor = (start + rotated.length) % base.length;
+      const round = (currentFits ? [current] : []).concat(rotated);
+      const scores = {};
+      for (let i = 0; i < round.length; i += AP_BATCH) {
+        const batch = round.slice(i, i + AP_BATCH);
+        const results = await Promise.all(batch.map(apScore));
+        batch.forEach(function (server, k) { scores[server.id] = results[k]; });
+      }
+      let best = null;
+      round.forEach(function (server) {
+        const ms = scores[server.id];
+        if (ms > 0 && (!best || ms < best.ms)) best = { server: server, ms: ms };
+      });
+      if (!best) {
         showToast('Рабочих серверов сейчас не найдено');
         return;
       }
-      state.latency[chosen.server.id] = { ms: chosen.ms };
-      state.latencyAt = Date.now();
-      globe.setLatency(state.latency);
-      const prefix = AP.mode === 'whitelist' ? 'Белые списки: да · ' : '';
-      if (!current || chosen.server.id !== current.id) {
-        selectServer(chosen.server.id, false);
-        showToast(prefix + 'Автопилот: ' + chosen.server.city + ' · ' + chosen.ms + ' мс');
-      } else if (reason === 'enable') {
-        showToast(prefix + 'Автопилот: текущий сервер работает');
+      const curMs = currentFits && current ? scores[current.id] : -1;
+      if (current && best.server.id === current.id) {
+        if (reason === 'enable') showToast('Автопилот: текущий сервер самый быстрый');
+      } else if (curMs > 0 && best.ms >= curMs * AP_SWITCH_RATIO) {
+        if (reason === 'enable') showToast('Автопилот: текущий сервер работает');
+      } else {
+        state.latency[best.server.id] = { ms: best.ms };
+        state.latencyAt = Date.now();
+        globe.setLatency(state.latency);
+        selectServer(best.server.id, false);
+        showToast('Автопилот: ' + best.server.city + ' · ' + Math.round(best.ms) + ' мс');
       }
       apSyncNative(all);
     } finally {
@@ -19248,7 +19283,7 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
     });
     window.setInterval(function () {
       if (apOn() && document.visibilityState !== 'hidden') apRun('tick');
-    }, 45000);
+    }, AP_INTERVAL_MS);
     syncAutopilotUI();
     if (apOn()) apSyncNative(apCandidates(selectedServer() ? selectedServer().id : ''));
   }

@@ -848,6 +848,11 @@ public class MainActivity extends Activity {
 
         // Проверка работоспособности сервера полным конфигом; ответ уходит в window.__onProbe(key, ms)
         @JavascriptInterface
+        public String networkKind() {
+            return GlobeVpnService.networkKind(MainActivity.this);
+        }
+
+        @JavascriptInterface
         public void probe(final String key, final String configJson, final String url, final int timeoutMs) {
             final String probeUrl = (url == null || url.isEmpty()) ? "https://www.gstatic.com/generate_204" : url;
             final long[] result = {-1L};
