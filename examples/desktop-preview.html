@@ -3925,6 +3925,30 @@ body[data-list-view="grid"] .server-country {
   }
   html[data-reduced="true"] .screen.is-active { animation: none; }
 }
+
+/* ── Десктоп: слайдер виден всегда, автопилот справа от слайдера ───── */
+@media (min-width: 1000px) {
+  body { --desk-cx: 50%; }
+  body:not([data-view="home"]) { --desk-cx: calc((100% - var(--desk-panel)) / 2); }
+
+  .home-ui {
+    left: var(--desk-cx);
+    transition: left .36s cubic-bezier(.22, .8, .24, 1);
+  }
+  body:not([data-view="home"]) .home-ui { display: flex; }
+
+  .autopilot {
+    left: calc(var(--desk-cx) + 67px);
+    bottom: calc(114px + env(safe-area-inset-bottom));
+    transition: left .36s cubic-bezier(.22, .8, .24, 1), background-color .25s ease, color .25s ease, border-color .25s ease;
+  }
+  body:not([data-view="home"]) .autopilot {
+    transform: none;
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+  }
+}
 </style>
 <body data-view="home">
 
