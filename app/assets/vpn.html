@@ -3667,6 +3667,179 @@ html[data-reduced="true"] .set-chevron, html[data-reduced="true"] .server-row,
 html[data-reduced="true"] .srv-flag { transition: none; }
 /* строки серверов не выделяются при долгом нажатии */
 .server-row, .group-toggle { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+
+/* ── Вид списка серверов: сетка карточек с мини-картой ───── */
+.server-map,
+.server-country,
+.server-arc,
+.server-dot { display: none; }
+
+body[data-list-view="grid"] .group-card.is-open .group-body {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  padding: 10px 10px 12px;
+}
+
+body[data-list-view="grid"] .group-body > .sub-info,
+body[data-list-view="grid"] .group-body > .sub-note { grid-column: 1 / -1; }
+
+body[data-list-view="grid"] .group-body .server-item {
+  display: block;
+  position: relative;
+  min-width: 0;
+}
+
+body[data-list-view="grid"] .group-body .server-item .row-remove {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  z-index: 2;
+}
+
+body[data-list-view="grid"] .group-body .server-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-areas: "map map" "flag side" "copy copy";
+  align-items: center;
+  gap: 6px 8px;
+  width: 100%;
+  padding: 0 0 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--paper-2);
+  overflow: hidden;
+  text-align: left;
+}
+
+body[data-list-view="grid"] .group-body .server-row:hover {
+  background: var(--paper-2);
+  border-color: var(--line-strong);
+}
+
+body[data-list-view="grid"] .group-body .server-row.is-selected {
+  background: var(--accent-soft);
+  border-color: var(--accent-line);
+  box-shadow: none;
+}
+
+body[data-list-view="grid"] .server-map {
+  grid-area: map;
+  display: block;
+  position: relative;
+  width: 100%;
+  aspect-ratio: 5 / 3;
+  overflow: hidden;
+  background-color: var(--paper);
+  background-image: radial-gradient(circle, var(--line-strong) 0.9px, transparent 1.3px);
+  background-size: 7px 7px;
+  border-bottom: 1px solid var(--line);
+}
+
+body[data-list-view="grid"] .server-map svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+body[data-list-view="grid"] .server-arc {
+  display: block;
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 0;
+}
+
+body[data-list-view="grid"] .group-body .server-row.is-selected .server-arc {
+  animation: server-arc-draw .9s cubic-bezier(.3, .9, .26, 1) both;
+}
+
+@keyframes server-arc-draw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+
+html[data-reduced="true"] body[data-list-view="grid"] .server-row.is-selected .server-arc { animation: none; }
+
+body[data-list-view="grid"] .server-dot {
+  display: block;
+  position: absolute;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 0 2px var(--paper);
+}
+
+body[data-list-view="grid"] .server-dot.is-origin { background: var(--ink); }
+body[data-list-view="grid"] .server-dot.is-server { background: var(--muted); }
+body[data-list-view="grid"] .server-row:has(.server-ping.is-fast) .server-dot.is-server { background: var(--accent); }
+body[data-list-view="grid"] .server-row:has(.server-ping.is-mid) .server-dot.is-server { background: #b27a1a; }
+body[data-list-view="grid"] .server-row:has(.server-ping.is-slow) .server-dot.is-server { background: var(--danger); }
+
+body[data-list-view="grid"] .server-flag {
+  grid-area: flag;
+  width: 30px;
+  height: 30px;
+  margin-left: 10px;
+  font-size: 18px;
+  background: none;
+  box-shadow: none;
+}
+
+body[data-list-view="grid"] .group-body .server-row.is-selected .server-flag { box-shadow: none; }
+
+body[data-list-view="grid"] .server-side {
+  grid-area: side;
+  flex-direction: row;
+  align-items: center;
+  justify-self: end;
+  min-width: 0;
+  max-width: 100%;
+  margin-right: 10px;
+}
+
+body[data-list-view="grid"] .server-proto { display: none; }
+
+body[data-list-view="grid"] .group-body .server-ping {
+  min-width: 0;
+  padding: 0;
+  background: none;
+  box-shadow: none;
+  font-family: var(--mono);
+  font-size: 12.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+body[data-list-view="grid"] .group-body .server-ping.is-idle { color: var(--muted); }
+
+body[data-list-view="grid"] .server-copy {
+  grid-area: copy;
+  min-width: 0;
+  gap: 2px;
+  padding: 0 10px;
+}
+
+body[data-list-view="grid"] .server-city {
+  font-size: 14px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+body[data-list-view="grid"] .server-country {
+  display: block;
+  font-family: var(--sans);
+  font-size: 11px;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 </style>
 <body data-view="home">
 
@@ -4042,6 +4215,16 @@ html[data-reduced="true"] .srv-flag { transition: none; }
             <button type="button" data-theme-value="auto" aria-pressed="true" aria-label="Авто: как в системе" title="Авто: как в системе"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor"/></svg></button>
             <button type="button" data-theme-value="paper" aria-pressed="false" aria-label="Светлая" title="Светлая"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.3 5.3l1.6 1.6M17.1 17.1l1.6 1.6M5.3 18.7l1.6-1.6M17.1 6.9l1.6-1.6"/></svg></button>
             <button type="button" data-theme-value="night" aria-pressed="false" aria-label="Тёмная" title="Тёмная"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></svg></button>
+          </div>
+        </div>
+        <div class="row row-stack">
+          <div class="row-copy">
+            <p class="row-label">Вид списка серверов</p>
+            <p class="row-note">Строки или карточки с мини-картой.</p>
+          </div>
+          <div class="segmented" role="group" aria-label="Вид списка серверов">
+            <button type="button" data-group="listView" data-value="list" aria-pressed="true">Список</button>
+            <button type="button" data-group="listView" data-value="grid" aria-pressed="false">Сетка</button>
           </div>
         </div>
         <div class="row row-stack">
@@ -15981,7 +16164,8 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
       pingEvery: [60, 300, 900].indexOf(Number(raw.pingEvery)) !== -1 ? Number(raw.pingEvery) : 60,
       pingTimeout: [1200, 2500, 4000].indexOf(Number(raw.pingTimeout)) !== -1 ? Number(raw.pingTimeout) : 2500,
       mapMaxPing: [0, 200, 300, 500, 1000].indexOf(Number(raw.mapMaxPing)) !== -1 && raw.mapMaxPing != null ? Number(raw.mapMaxPing) : 200,
-      mapDupes: raw.mapDupes === 'remove' ? 'remove' : 'keep'
+      mapDupes: raw.mapDupes === 'remove' ? 'remove' : 'keep',
+      listView: raw.listView === 'grid' ? 'grid' : 'list'
     };
   }
 
@@ -16618,7 +16802,8 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
       speed: settings.speed,
       autoconnect: settings.autoconnect,
       mapMaxPing: settings.mapMaxPing,
-      mapDupes: settings.mapDupes
+      mapDupes: settings.mapDupes,
+      listView: settings.listView
     });
     store.write('vpn.theme', settings.themeMode);
     store.write('vpn.customAccents', settings.customAccents);
@@ -16874,6 +17059,7 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
       persist();
       updateHome();
       markSelectedRow();
+      if (settings.listView === 'grid') renderServers(false);
       if (state.connected) {
         showToast('Переключено: ' + (server.flag ? server.flag + ' ' + server.city : server.city));
       }
@@ -16954,6 +17140,10 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
     }
     if (name === 'labels') document.body.dataset.labels = String(settings.labels);
     if (name === 'compact') document.body.dataset.compact = String(settings.compact);
+    if (name === 'listView') {
+      document.body.dataset.listView = settings.listView;
+      renderServers(false);
+    }
     if (name === 'ping' && settings.ping) {
       state.latencyAt = 0;
       window.setTimeout(function () { pingAll(true); }, 80);
@@ -18284,7 +18474,60 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
     return best;
   }
 
-    function buildServerRow(server, removable) {
+    // ── мини-карта превью-карточки: точка пользователя, сервер и дуга между ними ──
+  function miniMapPoints(server) {
+    const sLat = Number(server.lat);
+    const sLng = Number(server.lng);
+    const oLat = Number(originState.lat);
+    const oLng = Number(originState.lng);
+    if (!Number.isFinite(sLat) || !Number.isFinite(sLng) || !Number.isFinite(oLat) || !Number.isFinite(oLng)) return null;
+    const wrap = function (d) { return ((d + 540) % 360) - 180; };
+    const dLng = wrap(sLng - oLng);
+    const dLat = Math.abs(sLat - oLat);
+    // масштаб подбирается так, чтобы обе точки всегда попадали в кадр
+    const span = Math.max(Math.abs(dLng) * 1.5, dLat * 4.5, 60);
+    const k = 160 / span;
+    const cLng = oLng + dLng / 2;
+    const cLat = (sLat + oLat) / 2;
+    const place = function (lat, lng) {
+      return { x: 80 + wrap(lng - cLng) * k, y: 48 - (lat - cLat) * k };
+    };
+    return { o: place(oLat, oLng), s: place(sLat, sLng) };
+  }
+
+  function buildMiniMap(server) {
+    const map = document.createElement('span');
+    map.className = 'server-map';
+    map.setAttribute('aria-hidden', 'true');
+    const pts = miniMapPoints(server);
+    if (!pts) return map;
+    const NS = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(NS, 'svg');
+    svg.setAttribute('viewBox', '0 0 160 96');
+    svg.setAttribute('preserveAspectRatio', 'none');
+    if (settings.route && server.id === state.selectedId) {
+      const path = document.createElementNS(NS, 'path');
+      const dist = Math.hypot(pts.s.x - pts.o.x, pts.s.y - pts.o.y);
+      const cy = Math.max(2, Math.min(pts.o.y, pts.s.y) - 10 - dist * 0.35);
+      path.setAttribute('class', 'server-arc');
+      path.setAttribute('pathLength', '1');
+      path.setAttribute('d', 'M' + pts.o.x.toFixed(2) + ' ' + pts.o.y.toFixed(2)
+        + ' Q' + ((pts.o.x + pts.s.x) / 2).toFixed(2) + ' ' + cy.toFixed(2)
+        + ' ' + pts.s.x.toFixed(2) + ' ' + pts.s.y.toFixed(2));
+      svg.appendChild(path);
+    }
+    map.appendChild(svg);
+    [['is-origin', pts.o], ['is-server', pts.s]].forEach(function (item) {
+      const dot = document.createElement('span');
+      dot.className = 'server-dot ' + item[0];
+      dot.style.left = (item[1].x / 160 * 100).toFixed(2) + '%';
+      dot.style.top = (item[1].y / 96 * 100).toFixed(2) + '%';
+      map.appendChild(dot);
+    });
+    return map;
+  }
+
+  function buildServerRow(server, removable) {
     const item = document.createElement('div');
     item.className = 'server-item';
     const row = document.createElement('button');
@@ -18307,6 +18550,10 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
     city.className = 'server-city';
     city.textContent = server.city;
     copy.appendChild(city);
+    const country = document.createElement('span');
+    country.className = 'server-country';
+    country.textContent = [server.country, server.protocol].filter(Boolean).join(' · ');
+    copy.appendChild(country);
     const side = document.createElement('span');
     side.className = 'server-side';
     const ping = latencyText(server);
@@ -18321,6 +18568,7 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
     proto.textContent = server.protocol || '—';
     side.appendChild(pingEl);
     side.appendChild(proto);
+    row.appendChild(buildMiniMap(server));
     row.appendChild(flag);
     row.appendChild(copy);
     row.appendChild(side);
@@ -18684,6 +18932,7 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
     globe.select(id, { notify: false });
     updateHome();
     markSelectedRow();
+    if (settings.listView === 'grid') renderServers(false);
     if (goHome) showView('home');
     pingSelected();
     if (changed) reconnectIfActive();
@@ -20385,7 +20634,7 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
     button.addEventListener('click', function () {
       const group = button.dataset.group;
       const raw = button.dataset.value;
-      settings[group] = (raw === 'keep' || raw === 'remove') ? raw : Number(raw);
+      settings[group] = (raw === 'keep' || raw === 'remove' || raw === 'list' || raw === 'grid') ? raw : Number(raw);
       applySetting(group);
       syncSettings();
       persist();
@@ -20463,8 +20712,9 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
     settings.flags = 1;
     settings.speed = 1;
     settings.autoconnect = false;
+    settings.listView = 'list';
     applyTheme('auto');
-    ['rotate', 'route', 'reduced', 'dots', 'speed', 'flags', 'uiScale', 'labels', 'compact'].forEach(applySetting);
+    ['rotate', 'route', 'reduced', 'dots', 'speed', 'flags', 'uiScale', 'labels', 'compact', 'listView'].forEach(applySetting);
     syncSettings();
     persist();
     showToast('Настройки сброшены');
@@ -20659,7 +20909,7 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
   }
   initBypass();
   initSwipe();
-  ['rotate', 'route', 'reduced', 'dots', 'speed', 'flags', 'uiScale', 'labels', 'compact'].forEach(applySetting);
+  ['rotate', 'route', 'reduced', 'dots', 'speed', 'flags', 'uiScale', 'labels', 'compact', 'listView'].forEach(applySetting);
   syncSettings();
   renderServers();
   renderSubs();
