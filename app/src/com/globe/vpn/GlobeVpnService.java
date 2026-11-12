@@ -610,6 +610,7 @@ public class GlobeVpnService extends VpnService {
         final String name;
         final boolean wl;
         double score = -1;
+        double ms = -1; // последний замер из приложения, -1 — нет
 
         ApCandidate(String config, String name, boolean wl) {
             this.config = config;
@@ -722,8 +723,10 @@ public class GlobeVpnService extends VpnService {
                 for (int i = 0; i < servers.length(); i += 1) {
                     JSONObject server = servers.optJSONObject(i);
                     if (server == null || server.optJSONObject("config") == null) continue;
-                    all.add(new ApCandidate(canonical(server.optJSONObject("config").toString()),
-                            server.optString("name", ""), server.optBoolean("wl", false)));
+                    ApCandidate candidate = new ApCandidate(canonical(server.optJSONObject("config").toString()),
+                            server.optString("name", ""), server.optBoolean("wl", false));
+                    candidate.ms = server.optDouble("ms", -1);
+                    all.add(candidate);
                 }
                 ApCandidate current = null;
                 for (ApCandidate c : all) {
@@ -734,6 +737,18 @@ public class GlobeVpnService extends VpnService {
                 }
                 if (current == null) current = new ApCandidate(currentConfig, activeName, false);
                 boolean currentFits = fitsNetwork(kind, current.wl);
+                if (byNetwork && !currentFits) {
+                    // сеть сменилась, текущий сервер ей не подходит: сразу берём лучший подходящий по последнему замеру
+                    ApCandidate fit = null;
+                    for (ApCandidate c : all) {
+                        if (c.config.equals(currentConfig) || !fitsNetwork(kind, c.wl) || c.ms <= 0) continue;
+                        if (fit == null || c.ms < fit.ms) fit = c;
+                    }
+                    if (fit != null) {
+                        switchConfig(fit.config, fit.name);
+                        continue;
+                    }
+                }
 
                 List<ApCandidate> pool = new ArrayList<>();
                 for (ApCandidate c : all) {
