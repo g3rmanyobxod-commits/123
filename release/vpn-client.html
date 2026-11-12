@@ -3676,7 +3676,7 @@ html[data-reduced="true"] .srv-flag { transition: none; }
 
 body[data-list-view="grid"] .group-card.is-open .group-body {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(var(--grid-cols, 2), minmax(0, 1fr));
   gap: 10px;
   padding: 10px 10px 12px;
 }
@@ -3841,6 +3841,34 @@ body[data-list-view="grid"] .server-city {
   body[data-list-view="grid"] .server-side { margin-right: 8px; }
   body[data-list-view="grid"] .group-body .server-ping { font-size: 11px; }
   body[data-list-view="grid"] .server-copy { padding: 0 8px; }
+}
+
+body[data-list-view="grid"][data-grid-cols="3"] .group-card.is-open .group-body { gap: 8px; padding: 8px 8px 10px; }
+body[data-list-view="grid"][data-grid-cols="3"] .server-flag { width: 26px; height: 26px; font-size: 16px; margin-left: 8px; }
+body[data-list-view="grid"][data-grid-cols="3"] .server-side { margin-right: 8px; }
+body[data-list-view="grid"][data-grid-cols="3"] .server-copy { padding: 0 8px; }
+body[data-list-view="grid"][data-grid-cols="3"] .group-body .server-ping { font-size: 11px; }
+body[data-list-view="grid"][data-grid-cols="4"] .group-card.is-open .group-body { gap: 6px; padding: 6px 6px 8px; }
+body[data-list-view="grid"][data-grid-cols="4"] .group-body .server-row { border-radius: 12px; }
+body[data-list-view="grid"][data-grid-cols="4"] .server-flag {
+  grid-area: map;
+  align-self: start;
+  justify-self: start;
+  position: relative;
+  z-index: 1;
+  width: 20px;
+  height: 20px;
+  margin: 4px;
+  font-size: 13px;
+}
+body[data-list-view="grid"][data-grid-cols="4"] .server-side { justify-self: start; margin: 0 0 0 6px; }
+body[data-list-view="grid"][data-grid-cols="4"] .server-copy { padding: 0 6px; }
+body[data-list-view="grid"][data-grid-cols="4"] .group-body .server-ping { font-size: 10px; }
+body[data-list-view="grid"][data-grid-cols="4"] .server-country { display: none; }
+body[data-list-view="grid"][data-grid-cols="4"] .group-body .server-row {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas: "map" "side" "copy";
+  padding-bottom: 6px;
 }
 
 body[data-list-view="grid"] .server-country {
@@ -4237,6 +4265,17 @@ body[data-list-view="grid"] .server-country {
           <div class="segmented" role="group" aria-label="Вид списка серверов">
             <button type="button" data-group="listView" data-value="list" aria-pressed="true">Список</button>
             <button type="button" data-group="listView" data-value="grid" aria-pressed="false">Сетка</button>
+          </div>
+        </div>
+        <div class="row row-stack">
+          <div class="row-copy">
+            <p class="row-label">Колонок в сетке</p>
+            <p class="row-note">Сколько карточек в одной строке. Работает в режиме «Сетка».</p>
+          </div>
+          <div class="segmented" role="group" aria-label="Колонок в сетке">
+            <button type="button" data-group="gridCols" data-value="2" aria-pressed="true">2</button>
+            <button type="button" data-group="gridCols" data-value="3" aria-pressed="false">3</button>
+            <button type="button" data-group="gridCols" data-value="4" aria-pressed="false">4</button>
           </div>
         </div>
         <div class="row row-stack">
@@ -16177,7 +16216,8 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
       pingTimeout: [1200, 2500, 4000].indexOf(Number(raw.pingTimeout)) !== -1 ? Number(raw.pingTimeout) : 2500,
       mapMaxPing: [0, 200, 300, 500, 1000].indexOf(Number(raw.mapMaxPing)) !== -1 && raw.mapMaxPing != null ? Number(raw.mapMaxPing) : 200,
       mapDupes: raw.mapDupes === 'remove' ? 'remove' : 'keep',
-      listView: raw.listView === 'grid' ? 'grid' : 'list'
+      listView: raw.listView === 'grid' ? 'grid' : 'list',
+      gridCols: [2, 3, 4].indexOf(Number(raw.gridCols)) !== -1 ? Number(raw.gridCols) : 2
     };
   }
 
@@ -16815,7 +16855,8 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
       autoconnect: settings.autoconnect,
       mapMaxPing: settings.mapMaxPing,
       mapDupes: settings.mapDupes,
-      listView: settings.listView
+      listView: settings.listView,
+      gridCols: settings.gridCols
     });
     store.write('vpn.theme', settings.themeMode);
     store.write('vpn.customAccents', settings.customAccents);
@@ -17155,6 +17196,10 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
     if (name === 'listView') {
       document.body.dataset.listView = settings.listView;
       renderServers(false);
+    }
+    if (name === 'gridCols') {
+      document.body.dataset.gridCols = String(settings.gridCols);
+      root.style.setProperty('--grid-cols', String(settings.gridCols));
     }
     if (name === 'ping' && settings.ping) {
       state.latencyAt = 0;
@@ -18486,25 +18531,31 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
     return best;
   }
 
-    // ── мини-карта превью-карточки: точка пользователя, сервер и дуга между ними ──
+    // ── мини-карта превью-карточки: настоящие направление и расстояние от вас ──
+  // азимутальная эквидистантная проекция с центром в точке пользователя; масштаб один
+  // для всех карточек (MINI_KM_PER_PX), поэтому расстояния сравнимы между собой
+  const MINI_KM_PER_PX = 50;
+  const MINI_MAX_PX = 44;
   function miniMapPoints(server) {
     const sLat = Number(server.lat);
     const sLng = Number(server.lng);
     const oLat = Number(originState.lat);
     const oLng = Number(originState.lng);
     if (!Number.isFinite(sLat) || !Number.isFinite(sLng) || !Number.isFinite(oLat) || !Number.isFinite(oLng)) return null;
-    const wrap = function (d) { return ((d + 540) % 360) - 180; };
-    const dLng = wrap(sLng - oLng);
-    const dLat = Math.abs(sLat - oLat);
-    // масштаб подбирается так, чтобы обе точки всегда попадали в кадр
-    const span = Math.max(Math.abs(dLng) * 1.5, dLat * 4.5, 60);
-    const k = 160 / span;
-    const cLng = oLng + dLng / 2;
-    const cLat = (sLat + oLat) / 2;
-    const place = function (lat, lng) {
-      return { x: 80 + wrap(lng - cLng) * k, y: 48 - (lat - cLat) * k };
+    const rad = Math.PI / 180;
+    const p1 = oLat * rad;
+    const p2 = sLat * rad;
+    const dp = p2 - p1;
+    const dl = (sLng - oLng) * rad;
+    const h = Math.sin(dp / 2) * Math.sin(dp / 2) + Math.cos(p1) * Math.cos(p2) * Math.sin(dl / 2) * Math.sin(dl / 2);
+    const distKm = 2 * 6371 * Math.asin(Math.min(1, Math.sqrt(h)));
+    const bearing = Math.atan2(Math.sin(dl) * Math.cos(p2), Math.cos(p1) * Math.sin(p2) - Math.sin(p1) * Math.cos(p2) * Math.cos(dl));
+    // дальше края карты сервер ставится на край в том же направлении
+    const rho = Math.min(MINI_MAX_PX, distKm / MINI_KM_PER_PX);
+    return {
+      o: { x: 80, y: 48 },
+      s: { x: 80 + rho * Math.sin(bearing), y: 48 - rho * Math.cos(bearing) }
     };
-    return { o: place(oLat, oLng), s: place(sLat, sLng) };
   }
 
   function buildMiniMap(server) {
@@ -20725,8 +20776,9 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
     settings.speed = 1;
     settings.autoconnect = false;
     settings.listView = 'list';
+    settings.gridCols = 2;
     applyTheme('auto');
-    ['rotate', 'route', 'reduced', 'dots', 'speed', 'flags', 'uiScale', 'labels', 'compact', 'listView'].forEach(applySetting);
+    ['rotate', 'route', 'reduced', 'dots', 'speed', 'flags', 'uiScale', 'labels', 'compact', 'listView', 'gridCols'].forEach(applySetting);
     syncSettings();
     persist();
     showToast('Настройки сброшены');
@@ -20921,7 +20973,7 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
   }
   initBypass();
   initSwipe();
-  ['rotate', 'route', 'reduced', 'dots', 'speed', 'flags', 'uiScale', 'labels', 'compact', 'listView'].forEach(applySetting);
+  ['rotate', 'route', 'reduced', 'dots', 'speed', 'flags', 'uiScale', 'labels', 'compact', 'listView', 'gridCols'].forEach(applySetting);
   syncSettings();
   renderServers();
   renderSubs();
