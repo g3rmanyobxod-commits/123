@@ -3779,9 +3779,13 @@ body[data-list-view="grid"] .server-row:has(.server-ping.is-slow) .server-dot.is
 
 body[data-list-view="grid"] .server-flag {
   grid-area: flag;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
   width: 30px;
   height: 30px;
   margin-left: 10px;
+  padding: 0;
   font-size: 18px;
   background: none;
   box-shadow: none;
@@ -3829,6 +3833,14 @@ body[data-list-view="grid"] .server-city {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+@media (max-width: 360px) {
+  body[data-list-view="grid"] .group-card.is-open .group-body { gap: 8px; padding: 8px 8px 10px; }
+  body[data-list-view="grid"] .server-flag { margin-left: 8px; }
+  body[data-list-view="grid"] .server-side { margin-right: 8px; }
+  body[data-list-view="grid"] .group-body .server-ping { font-size: 11px; }
+  body[data-list-view="grid"] .server-copy { padding: 0 8px; }
 }
 
 body[data-list-view="grid"] .server-country {
