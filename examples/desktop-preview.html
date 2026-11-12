@@ -3667,6 +3667,223 @@ html[data-reduced="true"] .set-chevron, html[data-reduced="true"] .server-row,
 html[data-reduced="true"] .srv-flag { transition: none; }
 /* строки серверов не выделяются при долгом нажатии */
 .server-row, .group-toggle { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+
+/* ── Вид списка серверов: сетка карточек с мини-картой ───── */
+.server-map,
+.server-country,
+.server-arc,
+.server-dot { display: none; }
+
+body[data-list-view="grid"] .group-card.is-open .group-body {
+  display: grid;
+  grid-template-columns: repeat(var(--grid-cols, 2), minmax(0, 1fr));
+  gap: 10px;
+  padding: 10px 10px 12px;
+}
+
+body[data-list-view="grid"] .group-body > .sub-info,
+body[data-list-view="grid"] .group-body > .sub-note { grid-column: 1 / -1; }
+
+body[data-list-view="grid"] .group-body .server-item {
+  display: block;
+  position: relative;
+  min-width: 0;
+}
+
+body[data-list-view="grid"] .group-body .server-item .row-remove {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  z-index: 2;
+}
+
+body[data-list-view="grid"] .group-body .server-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-areas: "map map" "flag side" "copy copy";
+  align-items: center;
+  gap: 6px 8px;
+  width: 100%;
+  padding: 0 0 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--paper-2);
+  overflow: hidden;
+  text-align: left;
+}
+
+body[data-list-view="grid"] .group-body .server-row:hover {
+  background: var(--paper-2);
+  border-color: var(--line-strong);
+}
+
+body[data-list-view="grid"] .group-body .server-row.is-selected {
+  background: var(--accent-soft);
+  border-color: var(--accent-line);
+  box-shadow: none;
+}
+
+body[data-list-view="grid"] .server-map {
+  grid-area: map;
+  display: block;
+  position: relative;
+  width: 100%;
+  aspect-ratio: 5 / 3;
+  overflow: hidden;
+  background-color: var(--paper);
+  background-image: radial-gradient(circle, var(--line-strong) 0.9px, transparent 1.3px);
+  background-size: 7px 7px;
+  border-bottom: 1px solid var(--line);
+}
+
+body[data-list-view="grid"] .server-map svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+body[data-list-view="grid"] .server-arc {
+  display: block;
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 0;
+}
+
+body[data-list-view="grid"] .group-body .server-row.is-selected .server-arc {
+  animation: server-arc-draw .9s cubic-bezier(.3, .9, .26, 1) both;
+}
+
+@keyframes server-arc-draw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+
+html[data-reduced="true"] body[data-list-view="grid"] .server-row.is-selected .server-arc { animation: none; }
+
+body[data-list-view="grid"] .server-dot {
+  display: block;
+  position: absolute;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 0 2px var(--paper);
+}
+
+body[data-list-view="grid"] .server-dot.is-origin { background: var(--ink); }
+body[data-list-view="grid"] .server-dot.is-server { background: var(--muted); }
+body[data-list-view="grid"] .server-row:has(.server-ping.is-fast) .server-dot.is-server { background: var(--accent); }
+body[data-list-view="grid"] .server-row:has(.server-ping.is-mid) .server-dot.is-server { background: #b27a1a; }
+body[data-list-view="grid"] .server-row:has(.server-ping.is-slow) .server-dot.is-server { background: var(--danger); }
+
+body[data-list-view="grid"] .server-flag {
+  grid-area: flag;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  width: 30px;
+  height: 30px;
+  margin-left: 10px;
+  padding: 0;
+  font-size: 18px;
+  background: none;
+  box-shadow: none;
+}
+
+body[data-list-view="grid"] .group-body .server-row.is-selected .server-flag { box-shadow: none; }
+
+body[data-list-view="grid"] .server-side {
+  grid-area: side;
+  flex-direction: row;
+  align-items: center;
+  justify-self: end;
+  min-width: 0;
+  max-width: 100%;
+  margin-right: 10px;
+}
+
+body[data-list-view="grid"] .server-proto { display: none; }
+
+body[data-list-view="grid"] .group-body .server-ping {
+  min-width: 0;
+  padding: 0;
+  background: none;
+  box-shadow: none;
+  font-family: var(--mono);
+  font-size: 12.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+body[data-list-view="grid"] .group-body .server-ping.is-idle { color: var(--muted); }
+
+body[data-list-view="grid"] .server-copy {
+  grid-area: copy;
+  min-width: 0;
+  gap: 2px;
+  padding: 0 10px;
+}
+
+body[data-list-view="grid"] .server-city {
+  font-size: 14px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (max-width: 360px) {
+  body[data-list-view="grid"] .group-card.is-open .group-body { gap: 8px; padding: 8px 8px 10px; }
+  body[data-list-view="grid"] .server-flag { margin-left: 8px; }
+  body[data-list-view="grid"] .server-side { margin-right: 8px; }
+  body[data-list-view="grid"] .group-body .server-ping { font-size: 11px; }
+  body[data-list-view="grid"] .server-copy { padding: 0 8px; }
+}
+
+body[data-list-view="grid"][data-grid-cols="3"] .group-card.is-open .group-body { gap: 8px; padding: 8px 8px 10px; }
+body[data-list-view="grid"][data-grid-cols="3"] .server-flag { width: 26px; height: 26px; font-size: 16px; margin-left: 8px; }
+body[data-list-view="grid"][data-grid-cols="3"] .server-side { margin-right: 8px; }
+body[data-list-view="grid"][data-grid-cols="3"] .server-copy { padding: 0 8px; }
+body[data-list-view="grid"][data-grid-cols="3"] .group-body .server-ping { font-size: 11px; }
+body[data-list-view="grid"][data-grid-cols="4"] .group-card.is-open .group-body { gap: 6px; padding: 6px 6px 8px; }
+body[data-list-view="grid"][data-grid-cols="4"] .group-body .server-row { border-radius: 12px; }
+body[data-list-view="grid"][data-grid-cols="4"] .server-flag {
+  grid-area: map;
+  align-self: start;
+  justify-self: start;
+  position: relative;
+  z-index: 1;
+  width: 20px;
+  height: 20px;
+  margin: 4px;
+  font-size: 13px;
+}
+body[data-list-view="grid"][data-grid-cols="4"] .server-side { justify-self: start; margin: 0 0 0 6px; }
+body[data-list-view="grid"][data-grid-cols="4"] .server-copy { padding: 0 6px; }
+body[data-list-view="grid"][data-grid-cols="4"] .group-body .server-ping { font-size: 10px; }
+body[data-list-view="grid"][data-grid-cols="4"] .server-country { display: none; }
+body[data-list-view="grid"][data-grid-cols="4"] .group-body .server-row {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas: "map" "side" "copy";
+  padding-bottom: 6px;
+}
+
+body[data-list-view="grid"] .server-country {
+  display: block;
+  font-family: var(--sans);
+  font-size: 11px;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* календарь на один месяц: дни вне месяца пустые, будущие приглушённые */
+.heat i.is-out { background: transparent; }
+.heat i.is-future { background: var(--paper-2); opacity: .45; }
 </style>
 <body data-view="home">
 
@@ -4042,6 +4259,18 @@ html[data-reduced="true"] .srv-flag { transition: none; }
             <button type="button" data-theme-value="auto" aria-pressed="true" aria-label="Авто: как в системе" title="Авто: как в системе"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor"/></svg></button>
             <button type="button" data-theme-value="paper" aria-pressed="false" aria-label="Светлая" title="Светлая"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.3 5.3l1.6 1.6M17.1 17.1l1.6 1.6M5.3 18.7l1.6-1.6M17.1 6.9l1.6-1.6"/></svg></button>
             <button type="button" data-theme-value="night" aria-pressed="false" aria-label="Тёмная" title="Тёмная"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></svg></button>
+          </div>
+        </div>
+        <div class="row row-stack">
+          <div class="row-copy">
+            <p class="row-label">Серверов в строке</p>
+            <p class="row-note">1 — список. 2–4 — сетка с карточками и мини-картой.</p>
+          </div>
+          <div class="segmented" role="group" aria-label="Серверов в строке">
+            <button type="button" data-group="gridCols" data-value="1" aria-pressed="true">1</button>
+            <button type="button" data-group="gridCols" data-value="2" aria-pressed="false">2</button>
+            <button type="button" data-group="gridCols" data-value="3" aria-pressed="false">3</button>
+            <button type="button" data-group="gridCols" data-value="4" aria-pressed="false">4</button>
           </div>
         </div>
         <div class="row row-stack">
@@ -15981,7 +16210,9 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
       pingEvery: [60, 300, 900].indexOf(Number(raw.pingEvery)) !== -1 ? Number(raw.pingEvery) : 60,
       pingTimeout: [1200, 2500, 4000].indexOf(Number(raw.pingTimeout)) !== -1 ? Number(raw.pingTimeout) : 2500,
       mapMaxPing: [0, 200, 300, 500, 1000].indexOf(Number(raw.mapMaxPing)) !== -1 && raw.mapMaxPing != null ? Number(raw.mapMaxPing) : 200,
-      mapDupes: raw.mapDupes === 'remove' ? 'remove' : 'keep'
+      mapDupes: raw.mapDupes === 'remove' ? 'remove' : 'keep',
+      gridCols: raw.listView === 'list' ? 1 : ([1, 2, 3, 4].indexOf(Number(raw.gridCols)) !== -1 && Number(raw.gridCols) > 1
+        ? Number(raw.gridCols) : (raw.listView === 'grid' ? 2 : 1))
     };
   }
 
@@ -16618,7 +16849,9 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
       speed: settings.speed,
       autoconnect: settings.autoconnect,
       mapMaxPing: settings.mapMaxPing,
-      mapDupes: settings.mapDupes
+      mapDupes: settings.mapDupes,
+      listView: settings.gridCols > 1 ? 'grid' : 'list',
+      gridCols: settings.gridCols
     });
     store.write('vpn.theme', settings.themeMode);
     store.write('vpn.customAccents', settings.customAccents);
@@ -16874,6 +17107,7 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
       persist();
       updateHome();
       markSelectedRow();
+      if (settings.gridCols > 1) renderServers(false);
       if (state.connected) {
         showToast('Переключено: ' + (server.flag ? server.flag + ' ' + server.city : server.city));
       }
@@ -16954,6 +17188,12 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
     }
     if (name === 'labels') document.body.dataset.labels = String(settings.labels);
     if (name === 'compact') document.body.dataset.compact = String(settings.compact);
+    if (name === 'gridCols') {
+      document.body.dataset.listView = settings.gridCols > 1 ? 'grid' : 'list';
+      document.body.dataset.gridCols = String(settings.gridCols);
+      root.style.setProperty('--grid-cols', String(settings.gridCols));
+      renderServers(false);
+    }
     if (name === 'ping' && settings.ping) {
       state.latencyAt = 0;
       window.setTimeout(function () { pingAll(true); }, 80);
@@ -17426,11 +17666,12 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
         : 'rgba(' + rgb.r + ',' + rgb.g + ',' + rgb.b + ',' + alpha + ')';
     });
 
-    const weeks = 20;
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const start = new Date(today);
-    start.setDate(start.getDate() - (weeks * 7 - 1));
+    // календарь — один текущий месяц: сетка недель от понедельника, куда попадает 1-е число
+    const monthFirst = new Date(today.getFullYear(), today.getMonth(), 1);
+    const monthLast = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+    const start = new Date(monthFirst);
     start.setDate(start.getDate() - ((start.getDay() + 6) % 7));
 
     let total = 0;
@@ -17454,7 +17695,12 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
     const months = ['янв', 'фев', 'мар', 'апр', 'мая', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
     const monthsFull = ['январь', 'февраль', 'март', 'апрель', 'май', 'июнь', 'июль',
       'август', 'сентябрь', 'октябрь', 'ноябрь', 'декабрь'];
-    while (cursor <= today) {
+    while (cursor <= monthLast) {
+      if (cursor < monthFirst || cursor > today) {
+        cells.push(cursor < monthFirst ? '<i class="is-out"></i>' : '<i class="is-future"></i>');
+        cursor.setDate(cursor.getDate() + 1);
+        continue;
+      }
       const key = dayKey(cursor);
       const sec = Number((usage.data[key] || {}).sec) || 0;
       const bytes = dayBytes(key);
@@ -17477,8 +17723,7 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
     const subEl = document.getElementById('stats-total-sub');
     if (totalEl) totalEl.textContent = hoursText(monthSec);
     if (subEl) {
-      subEl.textContent = 'в защищённом режиме за ' + monthsFull[today.getMonth()] +
-        ' · всего ' + hoursText(total);
+      subEl.textContent = 'в защищённом режиме за ' + monthsFull[today.getMonth()];
     }
 
     const todaySec = Number((usage.data[dayKey()] || {}).sec) || 0;
@@ -18061,6 +18306,7 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
     });
     state.latencyAt = Date.now();
     globe.setLatency(state.latency);
+    if (apOn()) apSyncNative(apCandidates(selectedServer() ? selectedServer().id : ''));
     if (ui.pingAll) {
       ui.pingAll.disabled = false;
       resetPingButtons();
@@ -18284,7 +18530,66 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
     return best;
   }
 
-    function buildServerRow(server, removable) {
+    // ── мини-карта превью-карточки: настоящие направление и расстояние от вас ──
+  // азимутальная эквидистантная проекция с центром в точке пользователя; масштаб один
+  // для всех карточек (MINI_KM_PER_PX), поэтому расстояния сравнимы между собой
+  const MINI_KM_PER_PX = 50;
+  const MINI_MAX_PX = 44;
+  function miniMapPoints(server) {
+    const sLat = Number(server.lat);
+    const sLng = Number(server.lng);
+    const oLat = Number(originState.lat);
+    const oLng = Number(originState.lng);
+    if (!Number.isFinite(sLat) || !Number.isFinite(sLng) || !Number.isFinite(oLat) || !Number.isFinite(oLng)) return null;
+    const rad = Math.PI / 180;
+    const p1 = oLat * rad;
+    const p2 = sLat * rad;
+    const dp = p2 - p1;
+    const dl = (sLng - oLng) * rad;
+    const h = Math.sin(dp / 2) * Math.sin(dp / 2) + Math.cos(p1) * Math.cos(p2) * Math.sin(dl / 2) * Math.sin(dl / 2);
+    const distKm = 2 * 6371 * Math.asin(Math.min(1, Math.sqrt(h)));
+    const bearing = Math.atan2(Math.sin(dl) * Math.cos(p2), Math.cos(p1) * Math.sin(p2) - Math.sin(p1) * Math.cos(p2) * Math.cos(dl));
+    // дальше края карты сервер ставится на край в том же направлении
+    const rho = Math.min(MINI_MAX_PX, distKm / MINI_KM_PER_PX);
+    return {
+      o: { x: 80, y: 48 },
+      s: { x: 80 + rho * Math.sin(bearing), y: 48 - rho * Math.cos(bearing) }
+    };
+  }
+
+  function buildMiniMap(server) {
+    const map = document.createElement('span');
+    map.className = 'server-map';
+    map.setAttribute('aria-hidden', 'true');
+    const pts = miniMapPoints(server);
+    if (!pts) return map;
+    const NS = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(NS, 'svg');
+    svg.setAttribute('viewBox', '0 0 160 96');
+    svg.setAttribute('preserveAspectRatio', 'none');
+    if (settings.route && server.id === state.selectedId) {
+      const path = document.createElementNS(NS, 'path');
+      const dist = Math.hypot(pts.s.x - pts.o.x, pts.s.y - pts.o.y);
+      const cy = Math.max(2, Math.min(pts.o.y, pts.s.y) - 10 - dist * 0.35);
+      path.setAttribute('class', 'server-arc');
+      path.setAttribute('pathLength', '1');
+      path.setAttribute('d', 'M' + pts.o.x.toFixed(2) + ' ' + pts.o.y.toFixed(2)
+        + ' Q' + ((pts.o.x + pts.s.x) / 2).toFixed(2) + ' ' + cy.toFixed(2)
+        + ' ' + pts.s.x.toFixed(2) + ' ' + pts.s.y.toFixed(2));
+      svg.appendChild(path);
+    }
+    map.appendChild(svg);
+    [['is-origin', pts.o], ['is-server', pts.s]].forEach(function (item) {
+      const dot = document.createElement('span');
+      dot.className = 'server-dot ' + item[0];
+      dot.style.left = (item[1].x / 160 * 100).toFixed(2) + '%';
+      dot.style.top = (item[1].y / 96 * 100).toFixed(2) + '%';
+      map.appendChild(dot);
+    });
+    return map;
+  }
+
+  function buildServerRow(server, removable) {
     const item = document.createElement('div');
     item.className = 'server-item';
     const row = document.createElement('button');
@@ -18307,6 +18612,10 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
     city.className = 'server-city';
     city.textContent = server.city;
     copy.appendChild(city);
+    const country = document.createElement('span');
+    country.className = 'server-country';
+    country.textContent = [server.country, server.protocol].filter(Boolean).join(' · ');
+    copy.appendChild(country);
     const side = document.createElement('span');
     side.className = 'server-side';
     const ping = latencyText(server);
@@ -18321,6 +18630,7 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
     proto.textContent = server.protocol || '—';
     side.appendChild(pingEl);
     side.appendChild(proto);
+    row.appendChild(buildMiniMap(server));
     row.appendChild(flag);
     row.appendChild(copy);
     row.appendChild(side);
@@ -18684,6 +18994,7 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
     globe.select(id, { notify: false });
     updateHome();
     markSelectedRow();
+    if (settings.gridCols > 1) renderServers(false);
     if (goHome) showView('home');
     pingSelected();
     if (changed) reconnectIfActive();
@@ -18906,6 +19217,7 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
   // ── v6: иконки, контекстное меню, шторки редактирования ───────────────
   const PING_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M13.2 3.6 5.8 13.3h5.6l-1 7.1 7.4-9.7h-5.6z"/></svg>';
   const ICON_CONFIG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8.5 7 4 12l4.5 5M15.5 7 20 12l-4.5 5"/></svg>';
+  const ICON_WHITELIST = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l7 3v5c0 4.6-3 8.3-7 10-4-1.7-7-5.4-7-10V6z"/><path d="M9.2 12.2l2 2 3.6-3.8"/></svg>';
   const ICON_SHARE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V4M7.5 8.5 12 4l4.5 4.5"/><path d="M6 12.5v5.5h12v-5.5"/></svg>';
   const ICON_TUNE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg>';
   const ICON_EDIT = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/></svg>';
@@ -19350,12 +19662,22 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
 
   function openServerMenu(id, anchor) {
     const server = findServer(id);
-    if (!server || !anchor || server.subId === FREE_SUB_ID) return;
+    if (!server || !anchor) return;
+    const whitelistItem = {
+      label: apIsWhitelist(server) ? 'Убрать из белых списков' : 'Для белых списков',
+      icon: ICON_WHITELIST,
+      run: function () { toggleWhitelist(id); }
+    };
+    if (server.subId === FREE_SUB_ID) {
+      openCtxMenu(anchor, [whitelistItem]);
+      return;
+    }
     openCtxMenu(anchor, [
       { label: 'Конфиг', icon: ICON_CONFIG, run: function () { openServerConfig(id); } },
       { label: 'Поделиться', icon: ICON_SHARE, run: function () { shareServer(id); } },
       { label: 'Настроить', icon: ICON_TUNE, run: function () { openServerSettings(id); } },
       { label: 'Пинг', icon: PING_SVG, run: function () { pingServers([server]); } },
+      whitelistItem,
       '-',
       { label: 'Переименовать', icon: ICON_EDIT, run: function () { openServerRename(id); } }
     ]);
@@ -19501,8 +19823,12 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
   const AP_SWITCH_RATIO = 0.8;
   const AP_INTERVAL_MS = 60000;
 
-  // сервер «для белых списков»: пометка в названии, подписке или в комментарии ссылки (#...)
+  // ручная отметка из меню сервера важнее пометки в названии, подписке или комментарии ссылки
+  const whitelistMap = store.read('vpn.whitelist', {}) || {};
+
+  // сервер «для белых списков»: ручная отметка, либо пометка в названии, подписке или комментарии ссылки (#...)
   function apIsWhitelist(server) {
+    if (typeof whitelistMap[server.id] === 'boolean') return whitelistMap[server.id];
     let remark = '';
     const link = String(server.link || '');
     const hash = link.indexOf('#');
@@ -19510,6 +19836,16 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
       try { remark = decodeURIComponent(link.slice(hash + 1)); } catch (error) { remark = ''; }
     }
     return /белы|white\s*list|whitelist|\bwl\b|вайт/i.test([server.city, server.subName, remark].join(' '));
+  }
+
+  function toggleWhitelist(id) {
+    const server = findServer(id);
+    if (!server) return;
+    const next = !apIsWhitelist(server);
+    whitelistMap[id] = next;
+    store.write('vpn.whitelist', whitelistMap);
+    if (apOn()) apSyncNative(apCandidates(selectedServer() ? selectedServer().id : ''));
+    showToast(next ? 'Сервер для белых списков' : 'Сервер не для белых списков');
   }
 
   // тип сети: wifi / cell / other (нативный слой)
@@ -19552,7 +19888,9 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
     if (payload.enabled) {
       list.forEach(function (server) {
         const built = buildXrayConfig(server);
-        if (built.ok) payload.servers.push({ id: server.id, name: server.city, wl: apIsWhitelist(server), config: built.config });
+        const lat = state.latency[server.id];
+        const ms = lat && Number.isFinite(lat.ms) && lat.ms > 0 ? lat.ms : -1;
+        if (built.ok) payload.servers.push({ id: server.id, name: server.city, wl: apIsWhitelist(server), ms: ms, config: built.config });
       });
     }
     try { native.setAutopilot(JSON.stringify(payload)); } catch (error) { /* мост недоступен */ }
@@ -19585,6 +19923,19 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
       const pool = others.filter(function (server) { return apFits(kind, server); });
       const base = pool.length ? pool : others;
       const currentFits = !!current && apFits(kind, current);
+      if (current && !currentFits) {
+        // текущий сервер сети не подходит: сразу берём лучший подходящий по последним замерам
+        const measured = pool.filter(function (server) {
+          const lat = state.latency[server.id];
+          return lat && Number.isFinite(lat.ms) && lat.ms > 0;
+        });
+        if (measured.length) {
+          selectServer(measured[0].id, false);
+          showToast('Автопилот: ' + measured[0].city + ' · сеть ' + (kind === 'wifi' ? 'Wi‑Fi' : 'мобильная'));
+          apSyncNative(all);
+          return;
+        }
+      }
       const start = base.length ? AP.cursor % base.length : 0;
       const rotated = [];
       for (let i = 0; i < base.length && rotated.length < AP_ROUND; i += 1) rotated.push(base[(start + i) % base.length]);
@@ -20385,7 +20736,7 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
     button.addEventListener('click', function () {
       const group = button.dataset.group;
       const raw = button.dataset.value;
-      settings[group] = (raw === 'keep' || raw === 'remove') ? raw : Number(raw);
+      settings[group] = (raw === 'keep' || raw === 'remove' || raw === 'list' || raw === 'grid') ? raw : Number(raw);
       applySetting(group);
       syncSettings();
       persist();
@@ -20463,8 +20814,9 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
     settings.flags = 1;
     settings.speed = 1;
     settings.autoconnect = false;
+    settings.gridCols = 1;
     applyTheme('auto');
-    ['rotate', 'route', 'reduced', 'dots', 'speed', 'flags', 'uiScale', 'labels', 'compact'].forEach(applySetting);
+    ['rotate', 'route', 'reduced', 'dots', 'speed', 'flags', 'uiScale', 'labels', 'compact', 'gridCols'].forEach(applySetting);
     syncSettings();
     persist();
     showToast('Настройки сброшены');
@@ -20659,7 +21011,7 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
   }
   initBypass();
   initSwipe();
-  ['rotate', 'route', 'reduced', 'dots', 'speed', 'flags', 'uiScale', 'labels', 'compact'].forEach(applySetting);
+  ['rotate', 'route', 'reduced', 'dots', 'speed', 'flags', 'uiScale', 'labels', 'compact', 'gridCols'].forEach(applySetting);
   syncSettings();
   renderServers();
   renderSubs();
