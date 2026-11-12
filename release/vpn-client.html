@@ -5068,7 +5068,13 @@ window.GEO_CITIES = [
   };
 
   DotGlobe.prototype.setConnected = function (connected) {
+    const was = this.connected;
     this.connected = !!connected;
+    // при подключении дуга вырастает от точки пользователя к серверу
+    if (this.connected && !was && this.arc && !this.reduced) {
+      this.arcProgress = 0;
+      this.arcAnim = { start: performance.now(), dur: 900 };
+    }
   };
 
   DotGlobe.prototype.setArc = function (on) {
@@ -5612,6 +5618,40 @@ window.GEO_CITIES = [
         z: a.z + (b.z - a.z) * k
       };
       const p = this.project(local, {});
+      // хвост: яркий отрезок, догоняющий точку и плавно гаснущий назад
+      if (!this.reduced && idx > 0) {
+        const TAIL = 10;
+        const pointAt = (f) => {
+          const j = Math.floor(f);
+          const jj = Math.min(n - 1, j + 1);
+          const kk = f - j;
+          const A = points[j];
+          const B = points[jj];
+          return this.project({
+            x: A.x + (B.x - A.x) * kk,
+            y: A.y + (B.y - A.y) * kk,
+            z: A.z + (B.z - A.z) * kk
+          }, {});
+        };
+        ctx.strokeStyle = this.colors.accent;
+        ctx.lineCap = 'round';
+        let prev = null;
+        for (let st = TAIL; st >= 0; st -= 1) {
+          const f = idx - st * 0.7;
+          if (f < 0) { prev = null; continue; }
+          const q = pointAt(f);
+          if (prev && prev.z > 0.02 && q.z > 0.02) {
+            const fade = 1 - st / TAIL;
+            ctx.globalAlpha = 0.12 + 0.75 * fade;
+            ctx.lineWidth = 1.2 + 1.1 * fade;
+            ctx.beginPath();
+            ctx.moveTo(prev.x, prev.y);
+            ctx.lineTo(q.x, q.y);
+            ctx.stroke();
+          }
+          prev = q;
+        }
+      }
       if (p.z > 0.06) {
         ctx.globalAlpha = 0.95;
         ctx.fillStyle = this.colors.accent;
@@ -16905,7 +16945,13 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
     if (name === 'mapMaxPing' || name === 'mapDupes') globe.setMapFilter({ maxPing: settings.mapMaxPing, dupes: settings.mapDupes });
     if (name === 'speed') globe.setSpin(settings.speed);
     if (name === 'flags') root.style.setProperty('--flag-scale', String(settings.flags));
-    if (name === 'uiScale') root.style.zoom = String(settings.uiScale);
+    if (name === 'uiScale') {
+      root.style.zoom = String(settings.uiScale);
+      // слой маркеров компенсирует масштаб: его координаты в экранных пикселях, как у канваса дуги
+      const markersLayer = document.getElementById('markers');
+      if (markersLayer) markersLayer.style.zoom = String(1 / settings.uiScale);
+      if (globe) globe.resize();
+    }
     if (name === 'labels') document.body.dataset.labels = String(settings.labels);
     if (name === 'compact') document.body.dataset.compact = String(settings.compact);
     if (name === 'ping' && settings.ping) {
