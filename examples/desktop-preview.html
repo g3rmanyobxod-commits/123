@@ -1217,18 +1217,30 @@ html[data-reduced="true"] .group-body { transition: none; }
   -webkit-overflow-scrolling: touch;
 }
 
+/* календарь: дни недели по колонкам (Пн–Вс), недели по строкам */
 .heat {
   display: grid;
-  grid-template-rows: repeat(7, 1fr);
-  grid-auto-flow: column;
-  gap: 3px;
-  width: max-content;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 4px;
+  width: 100%;
+}
+
+.heat-wd {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  text-align: center;
+  line-height: 1;
+  padding-bottom: 2px;
 }
 
 .heat i {
-  width: 13px;
-  height: 13px;
-  border-radius: 3.5px;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1 / 1;
+  border-radius: 4px;
   background: var(--paper-2);
   box-shadow: inset 0 0 0 1px rgba(25, 26, 28, .05);
 }
@@ -3884,6 +3896,35 @@ body[data-list-view="grid"] .server-country {
 /* календарь на один месяц: дни вне месяца пустые, будущие приглушённые */
 .heat i.is-out { background: transparent; }
 .heat i.is-future { background: var(--paper-2); opacity: .45; }
+
+/* ── Десктоп (от 1000 px): карта слева, вкладки открываются справа ──── */
+@media (min-width: 1000px) {
+  :root { --desk-panel: 460px; }
+
+  .dock-item[data-nav="home"] { display: none; }
+  .dock { left: calc((100% - var(--desk-panel)) / 2); transition: left .36s cubic-bezier(.22, .8, .24, 1); }
+  body[data-view="home"] .dock { left: 50%; }
+  /* индикатор: кнопки карты больше нет, поэтому сдвиг на одну позицию */
+  .dock-mark { transform: translateX(calc((var(--i, 0) - 1) * 56px)); }
+  body[data-view="home"] .dock-mark { opacity: 0; }
+
+  .stage { right: 0; transition: right .36s cubic-bezier(.22, .8, .24, 1); }
+  body:not([data-view="home"]) .stage { right: var(--desk-panel); }
+
+  .screen {
+    inset: 0 0 0 auto;
+    width: var(--desk-panel);
+    border-left: 1px solid var(--line);
+    box-shadow: -18px 0 44px var(--shadow);
+    padding: 34px 28px calc(112px + env(safe-area-inset-bottom));
+  }
+  .screen.is-active { animation: desk-panel-in .36s cubic-bezier(.22, .8, .24, 1) both; }
+  @keyframes desk-panel-in {
+    from { transform: translateX(100%); }
+    to { transform: none; }
+  }
+  html[data-reduced="true"] .screen.is-active { animation: none; }
+}
 </style>
 <body data-view="home">
 
@@ -16015,6 +16056,7 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
   const CITIES = (window.GEO_CITIES || []).concat(window.GEO_CITIES_EXTRA || []);
   const osReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
+  const deskMq = window.matchMedia('(min-width: 1000px)');
   const store = {
     read: function (key, fallback) {
       try {
@@ -17689,7 +17731,9 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
     const mode = heatMode();
     let maxBytes = 1;
     Object.keys(usage.data).forEach(function (k) { maxBytes = Math.max(maxBytes, dayBytes(k)); });
-    const cells = [];
+    const cells = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'].map(function (day) {
+      return '<span class="heat-wd">' + day + '</span>';
+    });
     const cursor = new Date(start);
     const labels = ['понедельник', 'вторник', 'среда', 'четверг', 'пятница', 'суббота', 'воскресенье'];
     const months = ['янв', 'фев', 'мар', 'апр', 'мая', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
@@ -20017,7 +20061,7 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
       else item.removeAttribute('aria-current');
     });
     if (name === 'stats') renderStats();
-    globe.setPaused(!home);
+    globe.setPaused(!home && !deskMq.matches);
     if (!home) {
       const screen = document.getElementById('view-' + name);
       if (screen) {
@@ -20039,6 +20083,10 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
     }
     if (target === 'servers' && (state.view === 'add-server' || state.view === 'add-sub')) {
       showView('servers');
+      return;
+    }
+    if (target === state.view && deskMq.matches) {
+      showView('home');
       return;
     }
     if (target === state.view) {
@@ -20505,6 +20553,13 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
     hideToast();
     if (action) action();
   });
+
+  const deskStage = document.querySelector('.stage');
+  if (deskStage) {
+    deskStage.addEventListener('transitionend', function (event) {
+      if (event.propertyName === 'right') window.dispatchEvent(new Event('resize'));
+    });
+  }
 
   $$('[data-nav]').forEach(function (element) {
     element.addEventListener('click', function () { requestView(element.dataset.nav); });

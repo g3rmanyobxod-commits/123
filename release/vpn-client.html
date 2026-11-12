@@ -1217,18 +1217,30 @@ html[data-reduced="true"] .group-body { transition: none; }
   -webkit-overflow-scrolling: touch;
 }
 
+/* календарь: дни недели по колонкам (Пн–Вс), недели по строкам */
 .heat {
   display: grid;
-  grid-template-rows: repeat(7, 1fr);
-  grid-auto-flow: column;
-  gap: 3px;
-  width: max-content;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 4px;
+  width: 100%;
+}
+
+.heat-wd {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  text-align: center;
+  line-height: 1;
+  padding-bottom: 2px;
 }
 
 .heat i {
-  width: 13px;
-  height: 13px;
-  border-radius: 3.5px;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1 / 1;
+  border-radius: 4px;
   background: var(--paper-2);
   box-shadow: inset 0 0 0 1px rgba(25, 26, 28, .05);
 }
@@ -17689,7 +17701,9 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
     const mode = heatMode();
     let maxBytes = 1;
     Object.keys(usage.data).forEach(function (k) { maxBytes = Math.max(maxBytes, dayBytes(k)); });
-    const cells = [];
+    const cells = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'].map(function (day) {
+      return '<span class="heat-wd">' + day + '</span>';
+    });
     const cursor = new Date(start);
     const labels = ['понедельник', 'вторник', 'среда', 'четверг', 'пятница', 'суббота', 'воскресенье'];
     const months = ['янв', 'фев', 'мар', 'апр', 'мая', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
