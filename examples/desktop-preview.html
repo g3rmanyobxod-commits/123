@@ -17,9 +17,10 @@
     --danger: #b3412e;
     --warn: #9a7a16;
     --r: 16px;
+    --ease: cubic-bezier(.2, .8, .2, 1);
   }
   @media (prefers-color-scheme: dark) {
-    :root {
+    :root:not([data-theme="light"]) {
       --paper: #121413;
       --paper-2: #1c1f1d;
       --card: #171a18;
@@ -32,72 +33,57 @@
       --warn: #d8b24a;
     }
   }
+  :root[data-theme="dark"] {
+    --paper: #121413; --paper-2: #1c1f1d; --card: #171a18; --ink: #eceee9; --muted: #8b8f89;
+    --line: rgba(255, 255, 255, .08); --accent: #4fbf8c; --accent-soft: rgba(79, 191, 140, .14);
+    --danger: #e0715b; --warn: #d8b24a;
+  }
+
   * { box-sizing: border-box; }
   html, body { height: 100%; margin: 0; }
   body {
     font-family: "Onest", system-ui, -apple-system, "Segoe UI", sans-serif;
-    background: var(--paper);
-    color: var(--ink);
-    overflow: hidden;
+    background: var(--paper); color: var(--ink); overflow: hidden;
     -webkit-font-smoothing: antialiased;
   }
   button, input { font: inherit; color: inherit; }
   .mono { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
 
-  /* ---------- каркас ---------- */
-  .app {
-    display: grid;
-    grid-template-columns: 76px minmax(0, 1fr) 380px;
-    height: 100vh;
-  }
-  .side {
-    grid-column: 1; grid-row: 1;
-    border-right: 1px solid var(--line);
-    display: flex; flex-direction: column; align-items: center;
-    gap: 6px; padding: 18px 0;
-  }
-  .nav {
-    width: 46px; height: 46px; border: 0; border-radius: 14px;
-    background: transparent; color: var(--muted); cursor: pointer;
-    display: grid; place-items: center; transition: background .2s, color .2s;
-  }
-  .nav svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
-  .nav:hover { background: var(--paper-2); color: var(--ink); }
-  .nav.is-active { background: var(--accent-soft); color: var(--accent); }
-
-  .main { grid-column: 2; grid-row: 1; position: relative; min-width: 0; min-height: 0; overflow: hidden; }
+  /* ---------- каркас: карта слева, категория справа ---------- */
+  .app { display: flex; height: 100vh; }
+  .map-wrap { position: relative; flex: 1 1 auto; min-width: 0; min-height: 0; overflow: hidden; }
   #map { position: absolute; inset: 0; width: 100%; height: 100%; display: block; cursor: grab; touch-action: none; }
   #map.is-drag { cursor: grabbing; }
 
   .brand {
-    position: absolute; top: 20px; left: 0; right: 0; text-align: center; pointer-events: none;
+    position: absolute; top: 20px; left: 0; right: 0; margin: 0; text-align: center; pointer-events: none;
     font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12px; letter-spacing: .34em;
     color: var(--muted); text-transform: lowercase;
   }
   .status {
     position: absolute; top: 14px; right: 18px; display: flex; align-items: center; gap: 8px;
     padding: 7px 12px; border-radius: 999px; background: var(--card); border: 1px solid var(--line);
-    font-size: 13px; color: var(--muted);
+    font-size: 13px; color: var(--muted); transition: color .3s;
   }
-  .status i { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+  .status i { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); transition: background .3s, box-shadow .3s; }
   .status.on { color: var(--ink); }
   .status.on i { background: var(--accent); box-shadow: 0 0 0 4px var(--accent-soft); }
 
-  .dock {
-    position: absolute; left: 50%; bottom: 28px; transform: translateX(-50%);
-    display: flex; flex-direction: column; align-items: center; gap: 10px;
+  .connect-wrap {
+    position: absolute; left: 50%; bottom: 96px; transform: translateX(-50%);
+    display: flex; flex-direction: column; align-items: center; gap: 8px;
   }
   .connect {
     position: relative; width: 300px; height: 60px; border: 0; border-radius: 999px;
     background: var(--ink); color: var(--paper); cursor: pointer; overflow: hidden;
     touch-action: none; user-select: none; -webkit-user-select: none;
-    font-weight: 600; font-size: 15px; letter-spacing: .01em;
+    font-weight: 600; font-size: 15px;
     box-shadow: 0 14px 30px -18px rgba(0, 0, 0, .5);
     transition: background .3s ease, transform .15s ease;
   }
   .connect::before {
     content: ""; position: absolute; inset: 0; background: var(--accent);
-    transform: scaleX(var(--p, 0)); transform-origin: left center; opacity: .95;
+    transform: scaleX(var(--p, 0)); transform-origin: left center;
   }
   .connect span { position: relative; }
   .connect:active { transform: scale(.985); }
@@ -105,49 +91,85 @@
   .connect.on::before { display: none; }
   .hint { font-size: 12px; color: var(--muted); }
 
+  /* нижняя панель: только категории, карты среди них нет */
+  .dock {
+    position: absolute; left: 50%; bottom: 18px; transform: translateX(-50%); z-index: 4;
+    display: flex; gap: 4px; padding: 5px; border-radius: 999px;
+    background: color-mix(in srgb, var(--card) 88%, transparent);
+    border: 1px solid var(--line);
+    box-shadow: 0 12px 28px -18px rgba(0, 0, 0, .45);
+    -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
+  }
+  .dock-mark {
+    position: absolute; top: 5px; bottom: 5px; left: 0; width: 0; border-radius: 999px;
+    background: var(--accent-soft); opacity: 0;
+    transition: left .5s var(--ease), width .5s var(--ease), opacity .3s;
+  }
+  .dock.has-active .dock-mark { opacity: 1; }
+  .tab {
+    position: relative; z-index: 1; height: 46px; padding: 0 18px; border: 0; border-radius: 999px;
+    background: transparent; color: var(--muted); cursor: pointer;
+    display: flex; align-items: center; gap: 8px; font-size: 14px; white-space: nowrap;
+    transition: color .3s;
+  }
+  .tab svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; flex: 0 0 auto; }
+  .tab:hover { color: var(--ink); }
+  .tab.is-active { color: var(--accent); }
+
   .toast {
-    position: absolute; left: 50%; bottom: 112px; transform: translate(-50%, 12px); opacity: 0;
+    position: absolute; left: 50%; bottom: 160px; transform: translate(-50%, 12px); opacity: 0;
     padding: 9px 16px; border-radius: 999px; background: var(--ink); color: var(--paper);
-    font-size: 13px; pointer-events: none; transition: opacity .25s, transform .25s;
+    font-size: 13px; pointer-events: none; transition: opacity .25s, transform .25s; white-space: nowrap;
   }
   .toast.show { opacity: 1; transform: translate(-50%, 0); }
 
-  /* ---------- панель серверов ---------- */
+  /* ---------- правая панель: выезжает из-за карты ---------- */
   .panel {
-    grid-column: 3; grid-row: 1;
-    border-left: 1px solid var(--line); display: flex; flex-direction: column; min-height: 0;
+    flex: 0 0 0; width: 440px; overflow: hidden; visibility: hidden;
+    border-left: 1px solid var(--line); background: var(--paper);
+    transition: flex-basis .5s var(--ease), visibility 0s .5s;
   }
-  .panel-head { padding: 18px 18px 12px; }
-  .panel-title { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
-  .panel-title h2 { margin: 0; font-size: 18px; font-weight: 600; }
+  .panel.is-open {
+    flex-basis: 440px; visibility: visible;
+    transition: flex-basis .5s var(--ease), visibility 0s;
+  }
+  .panel-inner {
+    width: 440px; height: 100%; display: flex; flex-direction: column;
+    opacity: 0; transform: translateX(36px);
+    transition: opacity .3s ease, transform .5s var(--ease);
+  }
+  .panel.is-open .panel-inner { opacity: 1; transform: none; transition-delay: .12s, .12s; }
+  .panel-inner.is-swap, .panel.is-open .panel-inner.is-swap { opacity: 0; transform: translateX(14px); transition: opacity .16s ease, transform .16s ease; }
+
+  .panel-head { display: flex; align-items: center; justify-content: space-between; padding: 20px 20px 12px; }
+  .panel-head h2 { margin: 0; font-size: 19px; font-weight: 600; }
+  .icon-btn {
+    width: 34px; height: 34px; border: 0; border-radius: 11px; background: transparent; color: var(--muted);
+    display: grid; place-items: center; cursor: pointer; flex: 0 0 auto;
+  }
+  .icon-btn:hover { background: var(--paper-2); color: var(--ink); }
+  .icon-btn svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  .panel-body { flex: 1; overflow: auto; padding: 0 18px 24px; }
+
   .search {
     width: 100%; height: 40px; padding: 0 14px; border-radius: 12px; border: 1px solid var(--line);
-    background: var(--card); outline: none;
+    background: var(--card); outline: none; margin-bottom: 14px;
   }
   .search:focus { border-color: var(--accent); }
-  .list { flex: 1; overflow: auto; padding: 0 12px 20px; }
 
-  .group {
-    background: var(--card); border: 1px solid var(--line); border-radius: var(--r);
-    margin-bottom: 12px; overflow: hidden;
-  }
-  .group-head {
-    display: flex; align-items: center; gap: 8px; padding: 14px 12px 14px 16px; cursor: pointer;
-  }
+  /* группы серверов и подписок */
+  .group { background: var(--card); border: 1px solid var(--line); border-radius: var(--r); margin-bottom: 12px; overflow: hidden; }
+  .group-head { display: flex; align-items: center; gap: 8px; padding: 13px 10px 13px 16px; cursor: pointer; }
   .group-name { flex: 1; min-width: 0; font-weight: 600; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .count {
     min-width: 26px; height: 22px; padding: 0 7px; border-radius: 999px; background: var(--paper-2);
     display: inline-grid; place-items: center; font-size: 12px; color: var(--muted);
   }
-  .icon-btn {
-    width: 32px; height: 32px; border: 0; border-radius: 10px; background: transparent; color: var(--muted);
-    display: grid; place-items: center; cursor: pointer;
-  }
-  .icon-btn:hover { background: var(--paper-2); color: var(--ink); }
-  .icon-btn svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
-  .chev { transition: transform .25s ease; }
+  .chev { transition: transform .3s var(--ease); }
   .group.is-closed .chev { transform: rotate(-90deg); }
-  .group.is-closed .group-body { display: none; }
+  .collapse { display: grid; grid-template-rows: 1fr; transition: grid-template-rows .35s var(--ease); }
+  .group.is-closed .collapse { grid-template-rows: 0fr; }
+  .collapse > div { overflow: hidden; min-height: 0; }
 
   .group-desc { margin: 0 16px; padding: 0 0 10px; font-family: ui-monospace, Menlo, monospace; font-size: 12px; line-height: 1.5; color: var(--muted); }
   .stats {
@@ -156,99 +178,138 @@
     font-family: ui-monospace, Menlo, monospace; font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap;
   }
   .bar { flex: 1; height: 4px; border-radius: 999px; background: var(--paper-2); overflow: hidden; min-width: 40px; }
-  .bar i { display: block; height: 100%; background: var(--accent); border-radius: inherit; transition: width .4s ease; }
-  .stats-gap { height: 6px; }
-
-  .row {
-    display: flex; align-items: center; gap: 12px; margin: 4px 6px; padding: 9px 10px;
-    border-radius: 12px; cursor: pointer; transition: background .2s;
-  }
-  .row:hover { background: var(--paper-2); }
-  .row.is-sel { background: var(--accent-soft); }
-  .flag {
-    width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--line); background: var(--paper);
-    display: grid; place-items: center; font-size: 18px; flex: 0 0 auto;
-  }
-  .row.is-sel .flag { border: 2px solid var(--accent); }
-  .meta { flex: 1; min-width: 0; }
-  .meta .name { font-weight: 600; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .meta .sub { font-size: 12px; color: var(--muted); }
-  .tags { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex: 0 0 auto; }
-  .chip {
-    font-family: ui-monospace, Menlo, monospace; font-size: 11px; padding: 3px 8px; border-radius: 999px;
-    background: var(--paper-2); color: var(--muted); white-space: nowrap;
-  }
-  .ping { font-family: ui-monospace, Menlo, monospace; font-size: 11px; color: var(--muted); }
-  .ping.good { color: var(--accent); }
-  .ping.mid { color: var(--warn); }
-  .ping.bad { color: var(--danger); }
-
-  .group-foot { padding: 6px 10px 10px; display: flex; justify-content: flex-end; }
+  .bar i { display: block; height: 100%; background: var(--accent); border-radius: inherit; transition: width .5s var(--ease); }
+  .group-actions { display: flex; gap: 8px; padding: 12px 16px 14px; }
   .ghost {
     height: 32px; padding: 0 12px; border-radius: 10px; border: 1px solid var(--line); background: transparent;
     cursor: pointer; font-size: 13px; color: var(--muted);
   }
   .ghost:hover { color: var(--ink); background: var(--paper-2); }
 
-  /* ---------- узкие экраны ---------- */
-  @media (max-width: 1100px) {
-    .app { grid-template-columns: 76px minmax(0, 1fr) 320px; }
-    .connect { width: 260px; }
+  /* превью-карточки серверов */
+  .cards { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 0 12px 14px; }
+  .card {
+    position: relative; border: 1px solid var(--line); border-radius: 14px; background: var(--paper);
+    padding: 0; overflow: hidden; cursor: pointer; text-align: left;
+    transition: border-color .25s, box-shadow .25s, transform .25s var(--ease);
   }
+  .card:hover { transform: translateY(-2px); box-shadow: 0 10px 22px -16px rgba(0, 0, 0, .45); }
+  .card.is-sel { border: 2px solid var(--accent); }
+  .card.is-hidden { opacity: .45; }
+  .thumb {
+    position: relative; height: 96px; overflow: hidden;
+    background:
+      radial-gradient(circle, color-mix(in srgb, var(--muted) 55%, transparent) .9px, transparent 1.2px) 0 0 / 6px 6px,
+      linear-gradient(160deg, var(--paper-2), var(--card));
+  }
+  .thumb svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .thumb .arc { fill: none; stroke: var(--accent); stroke-width: 1.4; stroke-linecap: round; stroke-dasharray: 200; stroke-dashoffset: 200; transition: stroke-dashoffset .9s var(--ease); }
+  .card.is-sel .thumb .arc, .card:hover .thumb .arc { stroke-dashoffset: 0; }
+  .thumb .pin { position: absolute; width: 8px; height: 8px; margin: -4px 0 0 -4px; border-radius: 50%; }
+  .thumb .pin.o { background: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+  .thumb .pin.s { background: var(--ink); }
+  .card-body { padding: 9px 11px 11px; }
+  .card-top { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 4px; }
+  .flag { font-size: 16px; line-height: 1; }
+  .ping { font-family: ui-monospace, Menlo, monospace; font-size: 11px; color: var(--muted); white-space: nowrap; }
+  .ping.good { color: var(--accent); }
+  .ping.mid { color: var(--warn); }
+  .ping.bad { color: var(--danger); }
+  .card .name { font-weight: 600; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .card .sub { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  .chip {
+    font-family: ui-monospace, Menlo, monospace; font-size: 11px; padding: 3px 8px; border-radius: 999px;
+    background: var(--paper-2); color: var(--muted); white-space: nowrap;
+  }
+  .sub-card { background: var(--card); border: 1px solid var(--line); border-radius: var(--r); padding: 16px 16px 6px; margin-bottom: 12px; }
+  .sub-card h3 { margin: 0 0 6px; font-size: 15px; font-weight: 600; display: flex; justify-content: space-between; align-items: center; }
+  .sub-card p { margin: 0; font-family: ui-monospace, Menlo, monospace; font-size: 12px; line-height: 1.5; color: var(--muted); }
+  .add-btn {
+    width: 100%; height: 46px; border-radius: 14px; border: 1px dashed var(--line); background: transparent;
+    cursor: pointer; color: var(--muted); font-size: 14px;
+  }
+  .add-btn:hover { color: var(--accent); border-color: var(--accent); }
+
+  /* статистика */
+  .kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 14px; }
+  .kpi { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 12px; }
+  .kpi b { display: block; font-size: 18px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .kpi span { font-size: 12px; color: var(--muted); }
+  .chart { background: var(--card); border: 1px solid var(--line); border-radius: var(--r); padding: 16px; }
+  .chart h3 { margin: 0 0 14px; font-size: 14px; font-weight: 600; }
+  .bars { display: flex; align-items: flex-end; gap: 10px; height: 150px; }
+  .bars div { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; height: 100%; }
+  .bars i { display: block; width: 100%; border-radius: 8px 8px 4px 4px; background: var(--accent); height: 0; transition: height .7s var(--ease); }
+  .bars span { margin-top: 6px; text-align: center; font-size: 11px; color: var(--muted); }
+
+  /* настройки: разделы сворачиваются */
+  .set { background: var(--card); border: 1px solid var(--line); border-radius: var(--r); margin-bottom: 12px; overflow: hidden; }
+  .set-head { width: 100%; display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; border: 0; background: transparent; cursor: pointer; font-weight: 600; font-size: 15px; text-align: left; }
+  .set-body { padding: 0 16px 14px; }
+  .set-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 0; font-size: 14px; }
+  .set-row small { display: block; color: var(--muted); font-size: 12px; }
+  .segmented { display: inline-flex; padding: 3px; border-radius: 12px; background: var(--paper-2); }
+  .segmented button {
+    height: 30px; padding: 0 11px; border: 0; border-radius: 9px; background: transparent; color: var(--muted);
+    cursor: pointer; font-size: 13px; white-space: nowrap; transition: background .25s, color .25s;
+  }
+  .segmented button[aria-pressed="true"] { background: var(--card); color: var(--ink); box-shadow: 0 2px 6px -3px rgba(0, 0, 0, .35); }
+
+  /* узкие экраны: панель поверх карты */
   @media (max-width: 820px) {
-    .app { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) 42vh 68px; }
-    .main { grid-column: 1; grid-row: 1; }
-    .panel { grid-column: 1; grid-row: 2; border-left: 0; border-top: 1px solid var(--line); }
-    .side { grid-column: 1; grid-row: 3; flex-direction: row; justify-content: center; border-right: 0; border-top: 1px solid var(--line); padding: 8px 0; gap: 10px; }
-    .dock { bottom: 16px; }
+    .panel { position: absolute; top: 0; right: 0; bottom: 0; flex: none; width: 0; z-index: 6; box-shadow: -18px 0 36px -26px rgba(0, 0, 0, .5); transition: width .5s var(--ease), visibility 0s .5s; }
+    .panel.is-open { width: min(440px, 94vw); flex-basis: auto; transition: width .5s var(--ease), visibility 0s; }
+    .panel-inner { width: min(440px, 94vw); }
+    .dock .tab span.label { display: none; }
+    .tab { padding: 0 14px; }
   }
 </style>
 </head>
 <body>
 <div class="app">
 
-  <nav class="side" aria-label="Разделы">
-    <button class="nav is-active" aria-label="Главная" title="Главная">
-      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.6 2.8 2.6 15.2 0 18M12 3c-2.6 2.8-2.6 15.2 0 18"/></svg>
-    </button>
-    <button class="nav" aria-label="Серверы" title="Серверы">
-      <svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="6" rx="2"/><rect x="4" y="14" width="16" height="6" rx="2"/><path d="M8 7h.01M8 17h.01"/></svg>
-    </button>
-    <button class="nav" aria-label="Подписки" title="Подписки">
-      <svg viewBox="0 0 24 24"><path d="M5 4h14v16H5z"/><path d="M9 9h6M9 13h6"/></svg>
-    </button>
-    <button class="nav" aria-label="Статистика" title="Статистика">
-      <svg viewBox="0 0 24 24"><path d="M5 20V10M12 20V4M19 20v-7"/></svg>
-    </button>
-    <button class="nav" aria-label="Настройки" title="Настройки">
-      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
-    </button>
-  </nav>
-
-  <main class="main">
+  <section class="map-wrap" id="mapWrap">
     <canvas id="map" aria-label="Карта серверов"></canvas>
     <p class="brand">@smpl2</p>
     <div class="status" id="status"><i></i><span>Не подключено</span></div>
-    <div class="dock">
+
+    <div class="connect-wrap">
       <button class="connect" id="connect" aria-label="Подключение">
         <span id="connectLabel">Зажмите, чтобы подключиться</span>
       </button>
       <div class="hint">Удерживайте кнопку около полсекунды</div>
     </div>
-    <div class="toast" id="toast"></div>
-  </main>
 
-  <aside class="panel">
-    <div class="panel-head">
-      <div class="panel-title">
-        <h2>Серверы</h2>
-        <button class="icon-btn" title="Обновить подписки" aria-label="Обновить подписки">
-          <svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.3-5.6M20 4v5h-5"/></svg>
+    <nav class="dock" id="dock" aria-label="Разделы">
+      <span class="dock-mark" id="dockMark" aria-hidden="true"></span>
+      <button class="tab" type="button" data-tab="servers" aria-label="Серверы и подписки">
+        <svg viewBox="0 0 24 24"><rect x="4.6" y="4.6" width="14.8" height="14.8" rx="2.6"/><path d="M4.6 9.6h14.8"/><path d="M9.2 14.4h5.6"/></svg>
+        <span class="label">Серверы и подписки</span>
+      </button>
+      <button class="tab" type="button" data-tab="stats" aria-label="Статистика">
+        <svg viewBox="0 0 24 24"><path d="M4.8 19.2h14.4"/><path d="M8 19.2v-5.4"/><path d="M12 19.2V8.6"/><path d="M16 19.2v-8.2"/></svg>
+        <span class="label">Статистика</span>
+      </button>
+      <button class="tab" type="button" data-tab="settings" aria-label="Настройки">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="7"/><path d="M12 12l3.3-2.2"/><circle cx="12" cy="12" r="1.15" fill="currentColor" stroke="none"/></svg>
+        <span class="label">Настройки</span>
+      </button>
+    </nav>
+
+    <div class="toast" id="toast"></div>
+  </section>
+
+  <aside class="panel" id="panel" aria-live="polite">
+    <div class="panel-inner" id="panelInner">
+      <header class="panel-head">
+        <h2 id="panelTitle"></h2>
+        <button class="icon-btn" id="panelClose" aria-label="Закрыть">
+          <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>
         </button>
-      </div>
-      <input class="search" id="search" type="search" placeholder="Поиск по странам и городам">
+      </header>
+      <div class="panel-body" id="panelBody"></div>
     </div>
-    <div class="list" id="list"></div>
   </aside>
 
 </div>
@@ -256,6 +317,14 @@
 <script>
 (() => {
   'use strict';
+
+  const $ = (s, r = document) => r.querySelector(s);
+  const el = (tag, cls, text) => {
+    const n = document.createElement(tag);
+    if (cls) n.className = cls;
+    if (text != null) n.textContent = text;
+    return n;
+  };
 
   // ---------- данные (условные) ----------
   const MB = 1024 * 1024, GB = 1024 * MB, DAY = 86400000;
@@ -282,9 +351,14 @@
   const state = {
     selected: 'de1',
     connected: false,
-    ping: {},            // id -> число | 'busy' | 'none'
-    closed: {},          // id группы -> свёрнута
-    query: ''
+    ping: {},
+    closed: {},
+    query: '',
+    tab: null,
+    setClosed: { display: false, map: false, net: true },
+    mapLimit: 200,       // 0 — «Все»
+    dupes: 'keep',       // keep | remove
+    hidden: new Set()    // серверы, скрытые на карте настройками
   };
   GROUPS.forEach(g => { state.closed[g.id] = !g.open; });
 
@@ -296,8 +370,6 @@
   }
   const byId = id => SERVERS.find(s => s.id === id);
   const ORIGIN_V = unit(ORIGIN.lat, ORIGIN.lng);
-
-  // точки сферы (спираль Фибоначчи)
   const DOTS = [];
   {
     const N = 1500, golden = Math.PI * (3 - Math.sqrt(5));
@@ -310,7 +382,8 @@
   }
 
   // ---------- холст ----------
-  const canvas = document.getElementById('map');
+  const mapWrap = $('#mapWrap');
+  const canvas = $('#map');
   const ctx = canvas.getContext('2d');
   const view = { W: 0, H: 0, DPR: 1, R: 200, CX: 0, CY: 0 };
   const col = {};
@@ -323,17 +396,15 @@
     const r = canvas.getBoundingClientRect();
     view.W = r.width; view.H = r.height;
     view.DPR = Math.min(window.devicePixelRatio || 1, 2);
-    canvas.width = Math.round(view.W * view.DPR);
-    canvas.height = Math.round(view.H * view.DPR);
+    canvas.width = Math.max(1, Math.round(view.W * view.DPR));
+    canvas.height = Math.max(1, Math.round(view.H * view.DPR));
     ctx.setTransform(view.DPR, 0, 0, view.DPR, 0, 0);
-    view.R = Math.min(view.W * 0.42, view.H * 0.36);
+    view.R = Math.min(view.W * 0.42, view.H * 0.34);
     view.CX = view.W / 2;
-    view.CY = view.H / 2 - 36;
-    readColors();
+    view.CY = view.H / 2 - 40;
   }
 
-  // вращение: rotY вокруг вертикали, rotX — наклон
-  const rot = { y: 0.4, x: 0.25 };
+  const rot = { y: 0, x: 0.25 };
   function rotate(v) {
     const cy = Math.cos(rot.y), sy = Math.sin(rot.y), cx = Math.cos(rot.x), sx = Math.sin(rot.x);
     const x1 = v[0] * cy + v[2] * sy;
@@ -348,32 +419,28 @@
     return { x: view.CX + r[0] * p * view.R, y: view.CY - r[1] * p * view.R, z: r[2] };
   }
 
-  // дуга: большой круг с подъёмом над сферой
   function arcPoints(a, b) {
     const N = 90;
     const dot = Math.max(-1, Math.min(1, a[0] * b[0] + a[1] * b[1] + a[2] * b[2]));
     const ang = Math.acos(dot);
+    const s = Math.sin(ang) || 1e-6;
     const out = [];
     for (let i = 0; i <= N; i++) {
       const t = i / N;
-      const s = Math.sin(ang) || 1e-6;
       const k1 = Math.sin((1 - t) * ang) / s, k2 = Math.sin(t * ang) / s;
-      let p = [a[0] * k1 + b[0] * k2, a[1] * k1 + b[1] * k2, a[2] * k1 + b[2] * k2];
       const lift = 1 + (0.06 + 0.24 * ang / Math.PI) * Math.sin(Math.PI * t);
-      out.push([p[0] * lift, p[1] * lift, p[2] * lift]);
+      out.push([(a[0] * k1 + b[0] * k2) * lift, (a[1] * k1 + b[1] * k2) * lift, (a[2] * k1 + b[2] * k2) * lift]);
     }
     return out;
   }
-  let arc = null;             // { pts, start, dur, progress }
-  let arcGrow = 1;            // 0..1 — рост дуги
-  let arcGrowStart = 0;
+  let arc = null;
+  let arcGrow = 1, arcGrowStart = 0;
 
   function buildArc() {
     const s = byId(state.selected);
     arc = arcPoints(ORIGIN_V, unit(s.lat, s.lng));
   }
 
-  // ---------- цели вращения: сервер/середина дуги в центре ----------
   let target = null;
   function aimAt(v) {
     const r = Math.hypot(v[0], v[2]) || 1e-6;
@@ -387,7 +454,7 @@
     aimAt([m[0] / l, m[1] / l, m[2] / l]);
   }
 
-  // ---------- отрисовка ----------
+  // ---------- отрисовка глобуса ----------
   function drawDots() {
     ctx.fillStyle = col.ink;
     for (const v of DOTS) {
@@ -400,7 +467,6 @@
     }
     ctx.globalAlpha = 1;
   }
-
   function strokeRun(run, width, color, alpha) {
     if (run.length < 2) return;
     ctx.beginPath();
@@ -408,17 +474,14 @@
     ctx.lineWidth = width; ctx.strokeStyle = color; ctx.globalAlpha = alpha;
     ctx.stroke();
   }
-
   function drawArc(now) {
     if (!arc || !state.connected) return;
     const n = arc.length;
     const k = Math.floor(arcGrow * (n - 1));
     const runs = [];
     let run = [];
-    const proj = [];
     for (let i = 0; i <= k; i++) {
       const p = project(arc[i]);
-      proj.push(p);
       if (p.z > 0.02) run.push(p);
       else { if (run.length > 1) runs.push(run); run = []; }
     }
@@ -427,7 +490,6 @@
     runs.forEach(r => strokeRun(r, 4.4, col.paper, 0.9));
     runs.forEach(r => strokeRun(r, 1.8, col.accent, 1));
 
-    // хвост, бегущий по дуге, — когда дуга выросла
     if (arcGrow > 0.98) {
       const head = ((now % 3400) / 3400) * (n - 1);
       let prev = null;
@@ -449,7 +511,6 @@
       ctx.globalAlpha = 1;
     }
   }
-
   function drawOrigin(now) {
     const p = project(ORIGIN_V);
     if (p.z <= 0.02) return;
@@ -461,26 +522,25 @@
     ctx.fillStyle = col.accent; ctx.fill();
     ctx.lineWidth = 2; ctx.strokeStyle = col.paper; ctx.stroke();
   }
-
+  const EMOJI_FONT = '"Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif';
   function drawServers() {
-    ctx.font = '14px system-ui, "Apple Color Emoji", "Segoe UI Emoji", sans-serif';
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     for (const s of SERVERS) {
       const p = project(unit(s.lat, s.lng));
       s._p = p;
       if (p.z <= 0.02) continue;
       const sel = s.id === state.selected;
+      if (!sel && state.hidden.has(s.id)) continue;
       const r = sel ? 16 : 12;
       ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
       ctx.fillStyle = col.paper; ctx.fill();
       ctx.lineWidth = sel ? 2 : 1; ctx.strokeStyle = sel ? col.accent : col.line; ctx.stroke();
-      ctx.globalAlpha = 1;
+      ctx.font = '14px ' + EMOJI_FONT;
       ctx.fillText(s.flag, p.x, p.y + 0.5);
       if (sel) {
         ctx.font = '600 12px system-ui, sans-serif';
         ctx.fillStyle = col.ink;
         ctx.fillText(s.name, p.x, p.y + r + 14);
-        ctx.font = '14px system-ui, "Apple Color Emoji", "Segoe UI Emoji", sans-serif';
       }
     }
   }
@@ -490,7 +550,6 @@
   let dragging = false, dragMoved = 0, lastPt = null;
   function frame(now) {
     const dt = Math.min(50, now - lastT); lastT = now;
-
     if (!dragging) {
       if (target) {
         let dy = target.y - rot.y;
@@ -503,10 +562,9 @@
       }
     }
     if (arcGrowStart && arcGrow < 1) {
-      arcGrow = Math.min(1, (now - arcGrowStart) / 900);
-      arcGrow = 1 - Math.pow(1 - arcGrow, 3);
+      const k = Math.min(1, (now - arcGrowStart) / 900);
+      arcGrow = 1 - Math.pow(1 - k, 3);
     }
-
     ctx.clearRect(0, 0, view.W, view.H);
     drawDots();
     drawArc(now);
@@ -515,7 +573,7 @@
     requestAnimationFrame(frame);
   }
 
-  // ---------- взаимодействие с глобусом ----------
+  // ---------- взаимодействие с картой ----------
   canvas.addEventListener('pointerdown', e => {
     dragging = true; dragMoved = 0; lastPt = { x: e.clientX, y: e.clientY };
     target = null; canvas.classList.add('is-drag'); canvas.setPointerCapture(e.pointerId);
@@ -536,7 +594,7 @@
       const x = e.clientX - rc.left, y = e.clientY - rc.top;
       let hit = null, best = 18;
       for (const s of SERVERS) {
-        if (!s._p || s._p.z <= 0.02) continue;
+        if (!s._p || s._p.z <= 0.02 || state.hidden.has(s.id)) continue;
         const d = Math.hypot(s._p.x - x, s._p.y - y);
         if (d < best) { best = d; hit = s; }
       }
@@ -546,11 +604,11 @@
   canvas.addEventListener('pointerup', endDrag);
   canvas.addEventListener('pointercancel', endDrag);
 
-  // ---------- выбор и подключение ----------
-  const statusEl = document.getElementById('status');
-  const connectBtn = document.getElementById('connect');
-  const connectLabel = document.getElementById('connectLabel');
-  const toastEl = document.getElementById('toast');
+  // ---------- статус, выбор, подключение ----------
+  const statusEl = $('#status');
+  const connectBtn = $('#connect');
+  const connectLabel = $('#connectLabel');
+  const toastEl = $('#toast');
   let toastTimer = 0;
 
   function toast(text) {
@@ -563,12 +621,10 @@
   function renderStatus() {
     const s = byId(state.selected);
     statusEl.classList.toggle('on', state.connected);
-    statusEl.querySelector('span').textContent = state.connected
-      ? 'Подключено · ' + s.name
-      : 'Не подключено';
+    statusEl.querySelector('span').textContent = state.connected ? 'Подключено · ' + s.name : 'Не подключено';
     connectBtn.classList.toggle('on', state.connected);
     connectLabel.textContent = state.connected ? 'Отключиться' : 'Зажмите, чтобы подключиться';
-    document.querySelectorAll('.row').forEach(r => r.classList.toggle('is-sel', r.dataset.id === state.selected));
+    document.querySelectorAll('[data-id].card, [data-id].row').forEach(c => c.classList.toggle('is-sel', c.dataset.id === state.selected));
   }
 
   function select(id) {
@@ -577,6 +633,7 @@
     state.selected = id;
     buildArc();
     aimMiddle();
+    computeHidden();
     if (state.connected && changed) {
       arcGrow = 0; arcGrowStart = performance.now();
       toast('Сервер переключён: ' + byId(id).name);
@@ -587,18 +644,16 @@
   function toggleConnection() {
     state.connected = !state.connected;
     if (state.connected) {
-      buildArc();
-      aimMiddle();
+      buildArc(); aimMiddle();
       arcGrow = 0; arcGrowStart = performance.now();
       toast('Подключено');
     } else {
-      arcGrow = 0; arcGrowStart = 0;
+      arcGrowStart = 0; arcGrow = 1;
       toast('Отключено');
     }
     renderStatus();
   }
 
-  // удержание 0,5 с
   const HOLD_MS = 500;
   let holding = false, holdStart = 0, holdRaf = 0;
   function holdTick(now) {
@@ -629,9 +684,239 @@
   connectBtn.addEventListener('pointerup', holdCancel);
   connectBtn.addEventListener('pointercancel', holdCancel);
 
-  // ---------- список серверов ----------
-  const listEl = document.getElementById('list');
-  const searchEl = document.getElementById('search');
+  // ---------- пинг и фильтры карты ----------
+  function pingClass(ms) {
+    if (typeof ms !== 'number') return '';
+    return ms < 100 ? 'good' : ms < 200 ? 'mid' : 'bad';
+  }
+  function pingText(v) {
+    if (v === 'busy') return '…';
+    if (v === 'none' || v == null) return '— мс';
+    return v + ' мс';
+  }
+  function setPing(id, v) {
+    state.ping[id] = v;
+    document.querySelectorAll('[data-ping="' + id + '"]').forEach(node => {
+      node.textContent = pingText(v);
+      node.className = 'ping ' + pingClass(v);
+    });
+    computeHidden();
+  }
+  function pingGroup(gid) {
+    SERVERS.filter(s => s.group === gid).forEach(s => {
+      setPing(s.id, 'busy');
+      setTimeout(() => {
+        const ms = Math.round(25 + Math.random() * 230);
+        setPing(s.id, ms > 260 ? 'none' : ms);
+      }, 300 + Math.random() * 900);
+    });
+  }
+  function rank(s) {
+    const v = state.ping[s.id];
+    return typeof v === 'number' ? v : Infinity;
+  }
+  // порог пинга и дубликаты — как в настройках приложения
+  function computeHidden() {
+    const hidden = new Set();
+    const limit = state.mapLimit;
+    SERVERS.forEach(s => {
+      if (!limit || s.id === state.selected) return;
+      const v = state.ping[s.id];
+      if (v === 'none' || (typeof v === 'number' && v > limit)) hidden.add(s.id);
+    });
+    if (state.dupes === 'remove') {
+      const places = {};
+      SERVERS.forEach(s => {
+        if (hidden.has(s.id)) return;
+        const key = s.lat + ',' + s.lng;
+        (places[key] = places[key] || []).push(s);
+      });
+      Object.keys(places).forEach(key => {
+        const group = places[key].slice().sort((a, b) => rank(a) - rank(b));
+        group.slice(1).forEach(s => { if (s.id !== state.selected) hidden.add(s.id); });
+      });
+    }
+    state.hidden = hidden;
+  }
+
+  // ---------- панель: категории ----------
+  const panel = $('#panel');
+  const panelInner = $('#panelInner');
+  const panelBody = $('#panelBody');
+  const panelTitle = $('#panelTitle');
+  const dock = $('#dock');
+  const dockMark = $('#dockMark');
+  const TABS = {
+    servers: 'Серверы и подписки',
+    stats: 'Статистика',
+    settings: 'Настройки'
+  };
+  let swapTimer = 0;
+
+  function moveMark() {
+    const btn = dock.querySelector('.tab.is-active');
+    if (!btn) { dock.classList.remove('has-active'); return; }
+    dock.classList.add('has-active');
+    dockMark.style.left = btn.offsetLeft + 'px';
+    dockMark.style.width = btn.offsetWidth + 'px';
+  }
+
+  function openTab(tab) {
+    if (state.tab === tab) { closePanel(); return; }
+    const wasOpen = state.tab !== null;
+    state.tab = tab;
+    dock.querySelectorAll('.tab').forEach(b => b.classList.toggle('is-active', b.dataset.tab === tab));
+    moveMark();
+    panelTitle.textContent = TABS[tab];
+    clearTimeout(swapTimer);
+    if (wasOpen) {
+      panelInner.classList.add('is-swap');
+      swapTimer = setTimeout(() => {
+        if (state.tab !== tab) return;
+        renderTab(tab);
+        panelInner.classList.remove('is-swap');
+      }, 170);
+    } else {
+      renderTab(tab);
+      panel.classList.add('is-open');
+    }
+    requestAnimationFrame(() => {});
+  }
+
+  function closePanel() {
+    state.tab = null;
+    panel.classList.remove('is-open');
+    dock.querySelectorAll('.tab').forEach(b => b.classList.remove('is-active'));
+    moveMark();
+  }
+
+  function renderTab(tab) {
+    panelBody.textContent = '';
+    if (tab === 'servers') panelBody.appendChild(buildServersPanel());
+    if (tab === 'stats') panelBody.appendChild(buildStatsPanel());
+    if (tab === 'settings') panelBody.appendChild(buildSettingsPanel());
+  }
+
+  // превью-карточка: мини-карта с дугой от Хельсинки
+  const THUMB_W = 160, THUMB_H = 96;
+  function thumbXY(lat, lng) {
+    return { x: (lng + 180) / 360 * THUMB_W, y: (90 - lat) / 180 * THUMB_H };
+  }
+  function thumbNode(s) {
+    const o = thumbXY(ORIGIN.lat, ORIGIN.lng);
+    const d = thumbXY(s.lat, s.lng);
+    const mx = (o.x + d.x) / 2;
+    const my = Math.min(o.y, d.y) - Math.max(10, Math.hypot(d.x - o.x, d.y - o.y) * 0.45);
+    const wrap = el('div', 'thumb');
+    wrap.innerHTML = `<svg viewBox="0 0 ${THUMB_W} ${THUMB_H}" preserveAspectRatio="none" aria-hidden="true">
+        <path class="arc" pathLength="200" d="M${o.x.toFixed(1)} ${o.y.toFixed(1)} Q${mx.toFixed(1)} ${my.toFixed(1)} ${d.x.toFixed(1)} ${d.y.toFixed(1)}"/>
+      </svg>`;
+    const pinO = el('span', 'pin o');
+    pinO.style.left = (o.x / THUMB_W * 100) + '%'; pinO.style.top = (o.y / THUMB_H * 100) + '%';
+    const pinS = el('span', 'pin s');
+    pinS.style.left = (d.x / THUMB_W * 100) + '%'; pinS.style.top = (d.y / THUMB_H * 100) + '%';
+    wrap.append(pinO, pinS);
+    return wrap;
+  }
+  function cardNode(s) {
+    const btn = el('button', 'card');
+    btn.type = 'button';
+    btn.dataset.id = s.id;
+    if (s.id === state.selected) btn.classList.add('is-sel');
+    if (state.hidden.has(s.id)) btn.classList.add('is-hidden');
+    btn.appendChild(thumbNode(s));
+    const body = el('div', 'card-body');
+    const top = el('div', 'card-top');
+    top.appendChild(el('span', 'flag', s.flag));
+    const ping = el('span', 'ping', pingText(state.ping[s.id]));
+    ping.dataset.ping = s.id;
+    ping.className = 'ping ' + pingClass(state.ping[s.id]);
+    top.appendChild(ping);
+    body.appendChild(top);
+    body.appendChild(el('div', 'name', s.name));
+    body.appendChild(el('div', 'sub', s.country + ' · ' + s.proto));
+    btn.appendChild(body);
+    btn.addEventListener('click', () => select(s.id));
+    return btn;
+  }
+
+  let groupsHost = null;
+  function buildGroup(g) {
+    const items = SERVERS.filter(s => s.group === g.id)
+      .filter(s => !state.query || (s.name + ' ' + s.country).toLowerCase().includes(state.query));
+    if (state.query && !items.length) return null;
+
+    const t = g.traffic;
+    const ratio = t.total ? Math.min(1, t.used / t.total) : 0;
+    const days = t.expire ? Math.max(0, Math.ceil((t.expire - Date.now()) / DAY)) : null;
+    const numbers = fmtBytes(t.used) + '/' + (t.total ? fmtBytes(t.total) : '∞');
+
+    const section = el('section', 'group' + (state.closed[g.id] ? ' is-closed' : ''));
+    const head = el('div', 'group-head');
+    head.setAttribute('role', 'button');
+    head.tabIndex = 0;
+    head.appendChild(el('span', 'group-name', g.name));
+    head.appendChild(el('span', 'count', String(items.length)));
+    head.appendChild(Object.assign(el('span', 'chev'), { innerHTML: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>' }));
+    section.appendChild(head);
+
+    const collapse = el('div', 'collapse');
+    const inner = el('div');
+    if (g.desc) inner.appendChild(el('p', 'group-desc', g.desc));
+    const strip = el('div', 'stats');
+    strip.appendChild(el('span', '', days == null ? '∞' : days + ' ' + daysWord(days)));
+    const bar = el('span', 'bar');
+    const fill = el('i');
+    fill.style.width = '0%';
+    bar.appendChild(fill);
+    strip.appendChild(bar);
+    strip.appendChild(el('span', '', numbers));
+    inner.appendChild(strip);
+    const cards = el('div', 'cards');
+    items.forEach(s => cards.appendChild(cardNode(s)));
+    inner.appendChild(cards);
+    const actions = el('div', 'group-actions');
+    const pingBtn = el('button', 'ghost', 'Пинг группы');
+    pingBtn.type = 'button';
+    pingBtn.addEventListener('click', e => { e.stopPropagation(); pingGroup(g.id); });
+    const shareBtn = el('button', 'ghost', g.id === 'free' ? 'Обновить' : 'Поделиться');
+    shareBtn.type = 'button';
+    shareBtn.addEventListener('click', e => { e.stopPropagation(); toast(g.id === 'free' ? 'Подписка обновлена' : 'Ссылка скопирована'); });
+    actions.append(pingBtn, shareBtn);
+    inner.appendChild(actions);
+    collapse.appendChild(inner);
+    section.appendChild(collapse);
+
+    const toggle = () => {
+      state.closed[g.id] = !state.closed[g.id];
+      section.classList.toggle('is-closed', state.closed[g.id]);
+    };
+    head.addEventListener('click', toggle);
+    head.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); } });
+    requestAnimationFrame(() => requestAnimationFrame(() => { fill.style.width = (ratio * 100).toFixed(1) + '%'; }));
+    return section;
+  }
+  function renderGroups() {
+    if (!groupsHost) return;
+    groupsHost.textContent = '';
+    GROUPS.forEach(g => {
+      const node = buildGroup(g);
+      if (node) groupsHost.appendChild(node);
+    });
+  }
+  function buildServersPanel() {
+    const root = el('div');
+    const search = el('input', 'search');
+    search.type = 'search';
+    search.placeholder = 'Поиск по странам и городам';
+    search.value = state.query;
+    search.addEventListener('input', () => { state.query = search.value.trim().toLowerCase(); renderGroups(); });
+    root.appendChild(search);
+    groupsHost = el('div');
+    root.appendChild(groupsHost);
+    renderGroups();
+    return root;
+  }
 
   function fmtBytes(b) {
     const mb = b / MB;
@@ -646,138 +931,131 @@
     if (a >= 2 && a <= 4 && (b < 12 || b > 14)) return 'дня';
     return 'дней';
   }
-  function pingClass(ms) {
-    if (typeof ms !== 'number') return '';
-    return ms < 100 ? 'good' : ms < 200 ? 'mid' : 'bad';
-  }
-  function pingText(v) {
-    if (v === 'busy') return '…';
-    if (v === 'none' || v == null) return '— мс';
-    return v + ' мс';
-  }
 
-  function buildGroup(g) {
-    const items = SERVERS.filter(s => s.group === g.id)
-      .filter(s => !state.query || (s.name + ' ' + s.country).toLowerCase().includes(state.query));
-    if (state.query && !items.length) return null;
-
-    const t = g.traffic;
-    const ratio = t.total ? Math.min(1, t.used / t.total) : 0;
-    const days = t.expire ? Math.max(0, Math.ceil((t.expire - Date.now()) / DAY)) : null;
-    const numbers = fmtBytes(t.used) + '/' + (t.total ? fmtBytes(t.total) : '∞');
-
-    const wrap = document.createElement('section');
-    wrap.className = 'group' + (state.closed[g.id] ? ' is-closed' : '');
-    wrap.innerHTML = `
-      <div class="group-head" role="button" tabindex="0" aria-expanded="${!state.closed[g.id]}">
-        <span class="group-name"></span>
-        <span class="count">${items.length}</span>
-        <button class="icon-btn" data-act="ping" title="Пинг группы" aria-label="Пинг группы">
-          <svg viewBox="0 0 24 24"><path d="M13 3 4 14h7l-1 7 9-11h-7z"/></svg>
-        </button>
-        <span class="icon-btn chev" aria-hidden="true">
-          <svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>
-        </span>
-      </div>
-      <div class="group-body">
-        ${g.desc ? `<p class="group-desc">${g.desc}</p>` : ''}
-        <div class="stats">
-          <span>${days == null ? '∞' : days + ' ' + daysWord(days)}</span>
-          <span class="bar"><i style="width:${(ratio * 100).toFixed(1)}%"></i></span>
-          <span>${numbers}</span>
-        </div>
-        <div class="stats-gap"></div>
-        <div class="rows"></div>
-      </div>`;
-    wrap.querySelector('.group-name').textContent = g.name;
-
-    const rows = wrap.querySelector('.rows');
-    items.forEach(s => {
-      const row = document.createElement('div');
-      row.className = 'row' + (s.id === state.selected ? ' is-sel' : '');
-      row.dataset.id = s.id;
-      row.innerHTML = `
-        <div class="flag">${s.flag}</div>
-        <div class="meta">
-          <div class="name"></div>
-          <div class="sub"></div>
-        </div>
-        <div class="tags">
-          <span class="ping" data-ping="${s.id}"></span>
-          <span class="chip">${s.proto}</span>
-        </div>`;
-      row.querySelector('.name').textContent = s.name;
-      row.querySelector('.sub').textContent = s.country;
-      const pingEl = row.querySelector('.ping');
-      const v = state.ping[s.id];
-      pingEl.textContent = pingText(v);
-      pingEl.className = 'ping ' + pingClass(v);
-      row.addEventListener('click', () => select(s.id));
-      rows.appendChild(row);
+  function buildStatsPanel() {
+    const root = el('div');
+    const known = Object.values(state.ping).filter(v => typeof v === 'number');
+    const avg = known.length ? Math.round(known.reduce((a, b) => a + b, 0) / known.length) + ' мс' : '— мс';
+    const kpis = el('div', 'kpis');
+    [['1.2гб', 'сегодня'], [String(SERVERS.length), 'серверов'], [avg, 'средний пинг']].forEach(([v, l]) => {
+      const k = el('div', 'kpi');
+      k.appendChild(el('b', '', v));
+      k.appendChild(el('span', '', l));
+      kpis.appendChild(k);
     });
+    root.appendChild(kpis);
 
-    const head = wrap.querySelector('.group-head');
-    const toggle = () => {
-      state.closed[g.id] = !state.closed[g.id];
-      wrap.classList.toggle('is-closed', state.closed[g.id]);
-      head.setAttribute('aria-expanded', String(!state.closed[g.id]));
-    };
-    head.addEventListener('click', e => {
-      if (e.target.closest('[data-act="ping"]')) return;
-      toggle();
+    const chart = el('div', 'chart');
+    chart.appendChild(el('h3', '', 'Трафик за 7 дней, мб'));
+    const bars = el('div', 'bars');
+    const days = ['пн', 'вт', 'ср', 'чт', 'пт', 'сб', 'вс'];
+    const values = [420, 980, 640, 1320, 860, 1500, 1200];
+    const max = Math.max(...values);
+    const fills = [];
+    days.forEach((d, i) => {
+      const col = el('div');
+      const b = el('i');
+      b.dataset.h = String(Math.round(values[i] / max * 100));
+      fills.push(b);
+      col.append(b, el('span', '', d));
+      bars.appendChild(col);
     });
-    head.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); } });
-    wrap.querySelector('[data-act="ping"]').addEventListener('click', () => pingGroup(g.id));
-    return wrap;
+    chart.appendChild(bars);
+    root.appendChild(chart);
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      fills.forEach(b => { b.style.height = b.dataset.h + '%'; });
+    }));
+    return root;
   }
 
-  function renderList() {
-    listEl.textContent = '';
-    GROUPS.forEach(g => {
-      const node = buildGroup(g);
-      if (node) listEl.appendChild(node);
+  function setSegment(group, value, onPick) {
+    const seg = el('div', 'segmented');
+    seg.setAttribute('role', 'group');
+    group.forEach(([v, label]) => {
+      const b = el('button', '', label);
+      b.type = 'button';
+      b.setAttribute('aria-pressed', String(v === value));
+      b.addEventListener('click', () => {
+        seg.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+        onPick(v);
+      });
+      seg.appendChild(b);
     });
+    return seg;
   }
-
-  function setPing(id, v) {
-    state.ping[id] = v;
-    const el = document.querySelector('[data-ping="' + id + '"]');
-    if (el) { el.textContent = pingText(v); el.className = 'ping ' + pingClass(v); }
-  }
-  function pingGroup(gid) {
-    SERVERS.filter(s => s.group === gid).forEach(s => {
-      setPing(s.id, 'busy');
-      setTimeout(() => {
-        const ms = Math.round(25 + Math.random() * 230);
-        setPing(s.id, ms > 260 ? 'none' : ms);
-      }, 300 + Math.random() * 900);
+  function settingsSection(key, title, rows) {
+    const sec = el('section', 'set' + (state.setClosed[key] ? ' is-closed' : ''));
+    const head = el('button', 'set-head', title);
+    head.type = 'button';
+    head.appendChild(Object.assign(el('span', 'chev'), { innerHTML: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>' }));
+    const body = el('div', 'set-body');
+    rows.forEach(r => body.appendChild(r));
+    head.addEventListener('click', () => {
+      state.setClosed[key] = !state.setClosed[key];
+      sec.classList.toggle('is-closed', state.setClosed[key]);
     });
+    sec.append(head, body);
+    return sec;
+  }
+  function settingRow(title, hint, control) {
+    const row = el('div', 'set-row');
+    const text = el('div');
+    text.appendChild(document.createTextNode(title));
+    if (hint) text.appendChild(el('small', '', hint));
+    row.append(text, control);
+    return row;
+  }
+  function buildSettingsPanel() {
+    const root = el('div');
+    const theme = setSegment([['auto', 'Авто'], ['light', 'Светлая'], ['dark', 'Тёмная']],
+      document.documentElement.dataset.theme || 'auto', v => {
+        if (v === 'auto') delete document.documentElement.dataset.theme;
+        else document.documentElement.dataset.theme = v;
+        readColors();
+      });
+    const limit = setSegment([[0, 'Все'], [200, '200'], [300, '300'], [500, '500'], [1000, '1 с']], state.mapLimit, v => {
+      state.mapLimit = v; computeHidden(); renderGroups();
+    });
+    const dupes = setSegment([['keep', 'Оставлять'], ['remove', 'Убирать']], state.dupes, v => {
+      state.dupes = v; computeHidden(); renderGroups();
+    });
+    const ui = setSegment([[0.9, 'Мельче'], [1, 'Обычный'], [1.12, 'Крупнее']], 1, () => toast('Размер интерфейса — в приложении'));
+    root.append(
+      settingsSection('display', 'Отображение', [
+        settingRow('Тема', 'Авто — как в системе', theme),
+        settingRow('Размер интерфейса', null, ui)
+      ]),
+      settingsSection('map', 'Карта', [
+        settingRow('Порог пинга', 'Серверы дольше порога скрываются на карте', limit),
+        settingRow('Дубликаты', 'Серверы в одной точке', dupes)
+      ]),
+      settingsSection('net', 'Сеть', [
+        settingRow('Интервал проверки', null, setSegment([['1', '1 мин'], ['5', '5 мин']], '1', () => toast('Интервал сохранён')))
+      ])
+    );
+    return root;
   }
 
-  searchEl.addEventListener('input', () => {
-    state.query = searchEl.value.trim().toLowerCase();
-    renderList();
+  dock.addEventListener('click', e => {
+    const btn = e.target.closest('.tab');
+    if (btn) openTab(btn.dataset.tab);
   });
-
-  // навигация: только подсветка (макет)
-  document.querySelectorAll('.nav').forEach(btn => {
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('.nav').forEach(b => b.classList.toggle('is-active', b === btn));
-    });
-  });
+  $('#panelClose').addEventListener('click', closePanel);
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && state.tab) closePanel(); });
+  window.addEventListener('resize', () => { moveMark(); });
 
   // ---------- старт ----------
-  window.addEventListener('resize', resize);
+  new ResizeObserver(() => resize()).observe(mapWrap);
   window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', readColors);
   resize();
-  buildArc();
-  aimMiddle();
-  target = null;
+  readColors();
   rot.y = -Math.atan2(unit(byId('de1').lat, byId('de1').lng)[0], unit(byId('de1').lat, byId('de1').lng)[2]);
-  renderList();
+  target = null;
+  buildArc();
+  arcGrow = 1;
+  GROUPS.forEach(g => pingGroup(g.id));
+  computeHidden();
   renderStatus();
-  // демонстрационные пинги
-  pingGroup('free');
   requestAnimationFrame(frame);
 })();
 </script>
