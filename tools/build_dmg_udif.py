@@ -155,7 +155,8 @@ def build_udif(iso: bytes, volume: str) -> bytes:
     struct.pack_into('>II', koly, 56, 1, 1)                      # сегмент 1 из 1
     koly[64:80] = uuid.uuid4().bytes
     koly[80:88] = struct.pack('>II', 2, 32)                      # контрольная сумма данных
-    koly[88:92] = struct.pack('>I', part_crc)
+    # сумма данных — CRC32 сырого data fork (сжатые блоки как лежат в файле), см. apple-dmg / pydmg
+    koly[88:92] = struct.pack('>I', crc32(bytes(data)))
     struct.pack_into('>QQ', koly, 216, xml_off, xml_len)         # XML-таблица
     koly[352:360] = struct.pack('>II', 2, 32)                    # главная контрольная сумма
     koly[360:364] = master
@@ -194,7 +195,7 @@ def unpack_udif(dmg: bytes):
         assert len(raw) == cnt * 512
         assert sec * 512 == len(out)
         out += raw
-    assert struct.unpack_from('>I', koly, 88)[0] == crc32(bytes(out)), 'CRC данных'
+    assert struct.unpack_from('>I', koly, 88)[0] == crc32(dmg[:dlen]), 'CRC data fork'
     return bytes(out)
 
 
