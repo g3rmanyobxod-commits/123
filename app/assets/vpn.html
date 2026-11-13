@@ -4114,7 +4114,7 @@ body[data-list-view="grid"] .server-country {
         </div>
 
         <button class="primary form-submit" type="submit">Добавить сервер</button>
-        <p class="form-foot">Ядро Xray: VLESS, VMess, Trojan, Shadowsocks. Hysteria2 и TUIC не поддерживаются.</p>
+        <p class="form-foot">Ядро Xray: VLESS, VMess, Trojan, Shadowsocks, Hysteria2. TUIC не поддерживается.</p>
         <p class="sr-only" id="server-live" role="status" aria-live="polite"></p>
       </form>
     </div>
@@ -18204,8 +18204,47 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
       };
     }
 
-    if (scheme === 'hysteria2' || scheme === 'hy2' || scheme === 'tuic') {
-      return { ok: false, reason: (scheme === 'tuic' ? 'TUIC' : 'Hysteria2') + ' не поддерживается ядром Xray. Нужен VLESS, Trojan, VMess или Shadowsocks.' };
+    if (scheme === 'tuic') {
+      return { ok: false, reason: 'TUIC не поддерживается ядром Xray. Нужен VLESS, Trojan, VMess, Shadowsocks или Hysteria2.' };
+    }
+
+    if (scheme === 'hysteria2' || scheme === 'hy2') {
+      // Hysteria2 в ядре Xray: protocol «hysteria» версии 2 поверх QUIC (h3).
+      // Пароль из userinfo идёт в hysteriaSettings.auth; obfs=salamander — маска finalmask.udp.
+      const hyAuth = safeDecode(authority.userinfo || '');
+      if (!hyAuth) return { ok: false, reason: 'В ссылке Hysteria2 нет пароля' };
+      const hyFinal = {};
+      if (String(params.obfs || '').toLowerCase() === 'salamander') {
+        if (!params['obfs-password']) return { ok: false, reason: 'В ссылке Hysteria2 нет пароля obfs' };
+        hyFinal.udp = [{ type: 'salamander', settings: { password: params['obfs-password'] } }];
+      }
+      // Полоса (up/down) — только в формате «100mbps»/«100 Mbps», иначе обычный bbr
+      const bandwidth = function (value) {
+        const v = String(value || '').toLowerCase().replace(/\s+/g, '');
+        return /^\d+(\.\d+)?(bps|kbps|mbps|gbps|tbps)$/.test(v) ? v : '';
+      };
+      const hyUp = bandwidth(params.up), hyDown = bandwidth(params.down);
+      if (hyUp && hyDown) hyFinal.quicParams = { congestion: 'brutal', brutalUp: hyUp, brutalDown: hyDown };
+      const hyStream = {
+        network: 'hysteria',
+        security: 'tls',
+        tlsSettings: {
+          serverName: params.sni || params.peer || authority.host,
+          allowInsecure: params.insecure === '1' || params.allowInsecure === '1' || params.allowinsecure === '1',
+          alpn: ['h3']
+        },
+        hysteriaSettings: { version: 2, auth: hyAuth, udpIdleTimeout: 60 }
+      };
+      if (Object.keys(hyFinal).length) hyStream.finalmask = hyFinal;
+      return {
+        ok: true,
+        outbound: {
+          tag: 'proxy',
+          protocol: 'hysteria',
+          settings: { version: 2, address: authority.host, port: authority.port },
+          streamSettings: hyStream
+        }
+      };
     }
 
     return { ok: false, reason: 'Протокол ' + scheme + ' не поддерживается' };
