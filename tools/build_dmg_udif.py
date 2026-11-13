@@ -68,7 +68,9 @@ def build_iso(app_dir, app_name, volume):
     iso.new(interchange_level=3, rock_ridge='1.09', joliet=3, udf='2.60', vol_ident=volume[:32])
 
     # корень: папка приложения и ссылка Applications
-    iso.add_directory('/D0000', rr_name=app_name, joliet_path='/' + app_name, udf_path='/' + app_name)
+    # режим корня приложения явно 0755: по умолчанию pycdlib ставит 0555 (владелец не может писать)
+    iso.add_directory('/D0000', rr_name=app_name, joliet_path='/' + app_name, udf_path='/' + app_name,
+                      file_mode=stat.S_IFDIR | 0o755)
     iso_dirs = {app_name: '/D0000'}
     counter = {'d': 1, 'f': 0}
 
@@ -203,7 +205,7 @@ def compare_tree(app_dir, app_name, iso):
     """Читает ISO обратно и сравнивает с папкой: имена, содержимое, права."""
     r = pycdlib.PyCdlib()
     r.open_fp(io.BytesIO(iso))
-    expected = {'/' + app_name: ('dir', None, None), '/Applications': ('link', None, None)}
+    expected = {'/' + app_name: ('dir', 0o755, None), '/Applications': ('link', None, None)}
     for rel, kind, mode, data in walk_tree(app_dir):
         expected['/%s/%s' % (app_name, rel)] = (kind, mode, data)
     seen = set()
