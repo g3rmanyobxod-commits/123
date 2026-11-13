@@ -31,8 +31,9 @@ def render(size):
     return img.resize((size, size), Image.LANCZOS)
 
 
-for bucket, size in SIZES.items():
-    out = os.path.join(BASE, 'mipmap-' + bucket, 'ic_launcher.png')
-    render(size).save(out)
-    render(size).save(os.path.join(BASE, 'mipmap-' + bucket, 'ic_launcher_round.png'))
-    print('wrote', out)
+if __name__ == '__main__':
+    for bucket, size in SIZES.items():
+        out = os.path.join(BASE, 'mipmap-' + bucket, 'ic_launcher.png')
+        render(size).save(out)
+        render(size).save(os.path.join(BASE, 'mipmap-' + bucket, 'ic_launcher_round.png'))
+        print('wrote', out)
