@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Сборка macOS-приложения GlobeVPN для Apple Silicon (arm64) из десктопного макета examples/desktop-preview.html.
 #   release/macos/GlobeVPN-macos-arm64.zip — всегда (нужен только zip);
-#   release/macos/GlobeVPN-macos-arm64.dmg — только на macOS (нужен hdiutil).
+#   release/macos/GlobeVPN-macos-arm64.dmg — на macOS через hdiutil; без macOS через tools/build_dmg_udif.py (нужен pycdlib).
 # Приложение открывает интерфейс в браузере по умолчанию. VPN-ядра для macOS в проекте нет:
 # это интерфейс без подключения.
 set -euo pipefail
@@ -71,6 +71,9 @@ if [ "$IS_MAC" = 1 ] && command -v hdiutil >/dev/null 2>&1; then
   rm -f "$OUT/$NAME.dmg"
   hdiutil create -volname "GlobeVPN" -srcfolder "$STAGE" -ov -format UDZO -imagekey zlib-level=9 "$OUT/$NAME.dmg"
   echo "DMG: $OUT/$NAME.dmg"
+elif python3 -c "import pycdlib" >/dev/null 2>&1; then
+  # без macOS: UDIF-контейнер (zlib) с ISO9660 + Rock Ridge + Joliet + UDF; см. tools/build_dmg_udif.py
+  python3 "$ROOT/tools/build_dmg_udif.py" "$OUT/$NAME.dmg"
 else
-  echo "DMG не собран: нужен macOS (hdiutil). Запустите tools/build-macos-app.sh на Mac."
+  echo "DMG не собран: нужен macOS (hdiutil) или pip install pycdlib (без macOS)."
 fi
